@@ -5,6 +5,7 @@ import { TransactionGraph } from "./TransactionGraph";
 import { SignalBreakdown } from "./SignalBreakdown";
 import { RiskBar } from "./RiskBar";
 import { VerdictBadge } from "./VerdictBadge";
+import { AnalystAvatar } from "./AnalystAvatar";
 import { truncateAddress, formatDateTime, nowHHMM } from "@/lib/format";
 import { EXCHANGE_HOT_WALLET, EXCHANGE_NAME } from "@/lib/config";
 import { buildDefaultAuditNote } from "@/lib/verdict";
@@ -66,7 +67,17 @@ export function CaseDetail({
               <h1 className="text-xl font-medium">Deposit review</h1>
             </div>
           </div>
-          <VerdictBadge verdict={deposit.verdict} size="md" />
+          <div className="flex items-center gap-3">
+            {deposit.assigneeId && (
+              <div className="hidden md:flex items-center gap-2 rounded-md border bg-surface px-3 py-1.5">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Assigned
+                </span>
+                <AnalystAvatar analystId={deposit.assigneeId} size="sm" showName />
+              </div>
+            )}
+            <VerdictBadge verdict={deposit.verdict} size="md" />
+          </div>
         </div>
 
         {/* Deposit summary */}

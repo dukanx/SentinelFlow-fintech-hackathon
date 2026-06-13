@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { ShieldCheck, Inbox, Ban, CheckCircle2, ListTree } from "lucide-react";
+import { ShieldCheck, Inbox, Ban, CheckCircle2, ListTree, ChevronUp } from "lucide-react";
 import { deposits as seedDeposits } from "@/lib/mock-data";
 import type { Deposit, KanbanColumn, Verdict } from "@/lib/mock-data";
+import { CURRENT_ANALYST } from "@/lib/config";
 import { StatCards } from "./StatCards";
 import { NeedsReviewBoard } from "./NeedsReviewBoard";
 import { DepositTable } from "./DepositTable";
@@ -124,12 +125,30 @@ export function ChainSightApp() {
           })}
         </nav>
 
-        <div className="mt-auto p-4 border-t border-sidebar-border">
-          <div className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
-            Policy
+        <div className="mt-auto border-t border-sidebar-border">
+          <div className="px-4 py-3">
+            <div className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
+              Policy
+            </div>
+            <div className="text-xs text-sidebar-foreground/70 mt-1 leading-relaxed">
+              Fixed thresholds. Direct OFAC hits auto-reject.
+            </div>
           </div>
-          <div className="text-xs text-sidebar-foreground/70 mt-1 leading-relaxed">
-            Thresholds are fixed configuration. Direct OFAC hits auto-reject.
+          <div className="border-t border-sidebar-border p-3">
+            <button className="w-full flex items-center gap-3 rounded-md px-2 py-2 hover:bg-sidebar-accent transition-colors text-left">
+              <span
+                className={`inline-grid place-items-center rounded-full size-9 font-semibold text-xs ${CURRENT_ANALYST.avatarBg} ${CURRENT_ANALYST.avatarText}`}
+              >
+                {CURRENT_ANALYST.initials}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium truncate">{CURRENT_ANALYST.name}</div>
+                <div className="text-[11px] text-sidebar-foreground/60 truncate">
+                  {CURRENT_ANALYST.role}
+                </div>
+              </div>
+              <ChevronUp className="size-4 text-sidebar-foreground/40" />
+            </button>
           </div>
         </div>
       </aside>
