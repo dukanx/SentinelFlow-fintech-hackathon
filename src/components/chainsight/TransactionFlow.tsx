@@ -104,8 +104,33 @@ export function TransactionFlow({ nodes, edges }: Props) {
     return { positioned, width, height, colIndex };
   }, [nodes]);
 
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  // Compute connected edges/nodes for highlight
+  const { connectedEdges, connectedNodes } = useMemo(() => {
+    if (!hoveredId) return { connectedEdges: new Set<string>(), connectedNodes: new Set<string>() };
+    const ce = new Set<string>();
+    const cn = new Set<string>([hoveredId]);
+    edges.forEach((e) => {
+      if (e.source === hoveredId || e.target === hoveredId) {
+        ce.add(e.id);
+        cn.add(e.source);
+        cn.add(e.target);
+      }
+    });
+    return { connectedEdges: ce, connectedNodes: cn };
+  }, [hoveredId, edges]);
+
   return (
     <div className="rounded-xl border bg-surface overflow-hidden">
+      {/* Inline animation keyframes */}
+      <style>{`
+        @keyframes dash-flow {
+          to { stroke-dashoffset: -20; }
+        }
+        .flow-edge-anim { animation: dash-flow 1.2s linear infinite; }
+      `}</style>
+
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3 border-b">
         <div className="flex items-center gap-2 text-sm font-medium">
@@ -130,37 +155,13 @@ export function TransactionFlow({ nodes, edges }: Props) {
             height={layout.height}
           >
             <defs>
-              <marker
-                id="arrow-danger"
-                viewBox="0 0 10 10"
-                refX="9"
-                refY="5"
-                markerWidth="6"
-                markerHeight="6"
-                orient="auto-start-reverse"
-              >
+              <marker id="arrow-danger" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
                 <path d="M0,0 L10,5 L0,10 z" fill="oklch(0.58 0.22 25)" />
               </marker>
-              <marker
-                id="arrow-clean"
-                viewBox="0 0 10 10"
-                refX="9"
-                refY="5"
-                markerWidth="6"
-                markerHeight="6"
-                orient="auto-start-reverse"
-              >
+              <marker id="arrow-clean" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
                 <path d="M0,0 L10,5 L0,10 z" fill="oklch(0.75 0.01 250)" />
               </marker>
-              <marker
-                id="arrow-faded"
-                viewBox="0 0 10 10"
-                refX="9"
-                refY="5"
-                markerWidth="6"
-                markerHeight="6"
-                orient="auto-start-reverse"
-              >
+              <marker id="arrow-faded" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
                 <path d="M0,0 L10,5 L0,10 z" fill="oklch(0.58 0.22 25 / 0.45)" />
               </marker>
             </defs>
@@ -172,8 +173,8 @@ export function TransactionFlow({ nodes, edges }: Props) {
               const y1 = from.cy;
               const x2 = to.x;
               const y2 = to.cy;
-              const mx = (x1 + x2) / 2;
-              const path = `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+              const dx = Math.max(60, (x2 - x1) * 0.55);
+              const path = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
               const isDanger = e.className === "edge-danger";
               const isFaded = e.className === "edge-tainted-faded";
               const isClean = e.className === "edge-clean";
@@ -181,27 +182,31 @@ export function TransactionFlow({ nodes, edges }: Props) {
                 ? "oklch(0.58 0.22 25)"
                 : isFaded
                   ? "oklch(0.58 0.22 25 / 0.45)"
-                  : "oklch(0.75 0.01 250)";
-              const dasharray = isClean ? undefined : "6 4";
+                  : "oklch(0.6 0.01 250)";
+              const dasharray = isClean ? "1 0" : "8 6";
               const marker = isDanger
                 ? "url(#arrow-danger)"
                 : isFaded
                   ? "url(#arrow-faded)"
                   : "url(#arrow-clean)";
+              const dimmed = hoveredId && !connectedEdges.has(e.id);
+              const highlight = hoveredId && connectedEdges.has(e.id);
               return (
-                <g key={e.id}>
+                <g key={e.id} style={{ opacity: dimmed ? 0.2 : 1, transition: "opacity 200ms" }}>
                   <path
                     d={path}
                     fill="none"
                     stroke={stroke}
-                    strokeWidth={1.75}
+                    strokeWidth={highlight ? 2.5 : 1.75}
                     strokeDasharray={dasharray}
                     markerEnd={marker}
+                    className={!isClean ? "flow-edge-anim" : undefined}
                   />
                 </g>
               );
             })}
           </svg>
+
 
           {/* Edge labels */}
           {edges.map((e) => {
