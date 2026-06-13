@@ -16,8 +16,11 @@ export function RiskBar({ score }: Props) {
   return (
     <div className="rounded-xl border bg-surface px-6 py-5 flex items-center gap-8">
       {/* Score on the left */}
-      <div className="flex items-baseline gap-1.5 shrink-0">
-        <div className={`font-serif text-[64px] leading-none font-medium ${tone}`}>
+      <div className="flex items-baseline gap-2 shrink-0">
+        <div
+          className={`text-[56px] leading-none font-semibold tabular-nums ${tone}`}
+          style={{ fontFamily: "'IBM Plex Mono', ui-monospace, monospace", letterSpacing: "-0.02em" }}
+        >
           {clamped}
         </div>
         <div className="text-xs text-muted-foreground flex flex-col leading-tight">

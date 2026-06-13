@@ -80,8 +80,8 @@ export function CaseDetail({
           </div>
         </div>
 
-        {/* Deposit summary */}
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 rounded-lg border bg-surface p-5">
+        {/* Deposit summary — separate cards */}
+        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
           <Field label="Sender" value={truncateAddress(deposit.sender, 8, 6)} mono />
           <Field
             label="Amount"
@@ -233,10 +233,10 @@ function Field({
   mono?: boolean;
 }) {
   return (
-    <div>
-      <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={`mt-1 text-sm ${mono ? "font-mono" : ""}`}>{value}</div>
-      {sub && <div className="text-xs font-mono text-muted-foreground mt-0.5">{sub}</div>}
+    <div className="rounded-lg border bg-surface p-4 hover:border-foreground/20 transition-colors">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</div>
+      <div className={`mt-1.5 text-sm ${mono ? "font-mono" : ""}`}>{value}</div>
+      {sub && <div className="text-[11px] font-mono text-muted-foreground mt-1 truncate">{sub}</div>}
     </div>
   );
 }
