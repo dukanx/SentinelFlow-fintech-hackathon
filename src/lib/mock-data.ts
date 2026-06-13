@@ -50,25 +50,39 @@ export function makeGraph(opts: {
   hops: { id: string; label: string; kind: GraphNodeKind; amount: string }[];
   endpointFlow: string; // amount into exchange
 }): DepositGraph {
-  // Build linear chain: sanctioned/mixer ... -> sender -> exchange
-  // hops[0] is the leftmost (sanctioned origin), last hop before sender is the last intermediary
   const chain = [...opts.hops];
   const senderIdx = chain.length;
   const exchangeIdx = senderIdx + 1;
 
+  // Detect mixer for adding a sibling "Unattributed wallet" inflow
+  const mixerIdx = chain.findIndex((h) => h.kind === "mixer");
+  const hasSideWallet = mixerIdx > 0; // need a column 0 to place wallet below
+
   const nodes: Node[] = chain.map((h, i) => ({
     id: h.id,
     type: h.kind,
-    position: col(i),
+    position: { ...col(i), y: 0 },
     data: { label: h.label, address: h.id },
     width: NODE_W,
     height: NODE_H,
   }));
 
+  if (hasSideWallet) {
+    // Place wallet at column (mixerIdx - 1) lower row to feed into mixer
+    nodes.push({
+      id: `wallet-side-${opts.sender.slice(2, 6)}`,
+      type: "wallet",
+      position: { ...col(mixerIdx - 1), y: 120 },
+      data: { label: "Unattributed", address: "0x88c1a4f9d2e7b3c5a6e8f1d2…4e2a" },
+      width: NODE_W,
+      height: NODE_H,
+    });
+  }
+
   nodes.push({
     id: "sender",
     type: "sender",
-    position: col(senderIdx),
+    position: { ...col(senderIdx), y: 0 },
     data: { label: "Sender", address: opts.sender },
     width: NODE_W,
     height: NODE_H,
@@ -77,8 +91,8 @@ export function makeGraph(opts: {
   nodes.push({
     id: "exchange",
     type: "exchange",
-    position: col(exchangeIdx),
-    data: { label: "Exchange hot wallet", address: EXCHANGE_HOT_WALLET },
+    position: { ...col(exchangeIdx), y: 0 },
+    data: { label: "Your hot wallet", address: EXCHANGE_HOT_WALLET },
     width: NODE_W,
     height: NODE_H,
   });
@@ -87,14 +101,24 @@ export function makeGraph(opts: {
   for (let i = 0; i < chain.length; i++) {
     const from = chain[i].id;
     const to = i + 1 < chain.length ? chain[i + 1].id : "sender";
-    const danger = chain[i].kind === "sanctioned";
-    const warn = chain[i].kind === "mixer";
+    const danger = chain[i].kind === "sanctioned" || chain[i].kind === "mixer";
     edges.push({
       id: `e-${from}-${to}`,
       source: from,
       target: to,
       label: chain[i].amount,
-      className: danger ? "edge-danger" : warn ? "edge-warn" : "",
+      className: danger ? "edge-danger" : "edge-tainted",
+      type: "smoothstep",
+    });
+  }
+  if (hasSideWallet) {
+    const wid = `wallet-side-${opts.sender.slice(2, 6)}`;
+    edges.push({
+      id: `e-${wid}-mixer`,
+      source: wid,
+      target: chain[mixerIdx].id,
+      label: "3.30 ETH",
+      className: "edge-clean",
       type: "smoothstep",
     });
   }
@@ -103,6 +127,7 @@ export function makeGraph(opts: {
     source: "sender",
     target: "exchange",
     label: opts.endpointFlow,
+    className: "edge-tainted-faded",
     type: "smoothstep",
   });
 
