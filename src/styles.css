@@ -129,9 +129,11 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
-    font-feature-settings: "ss01", "cv11";
+    font-feature-settings: "ss01", "ss02";
+    letter-spacing: -0.005em;
   }
   .font-mono { font-family: var(--font-mono); }
+  .font-serif { font-family: var(--font-serif); }
 }
 
 /* xyflow tweaks */
