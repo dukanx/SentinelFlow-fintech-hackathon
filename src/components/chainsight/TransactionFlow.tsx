@@ -278,57 +278,36 @@ export function TransactionFlow({ nodes, edges }: Props) {
                   </div>
                 </div>
 
-                {/* Hover detail card */}
-                {isHovered && (
-                  <div
-                    className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-30 w-72 rounded-lg border bg-popover shadow-xl p-3 animate-in fade-in slide-in-from-top-1 duration-150"
-                    onMouseEnter={() => setHoveredId(n.id)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={`size-7 grid place-items-center rounded-md ${s.iconBg}`}>
-                        <Icon className="size-3.5" strokeWidth={2.2} />
-                      </span>
-                      <div className="min-w-0">
-                        <div className={`text-[9px] font-semibold tracking-wider ${s.chip} rounded px-1 py-px inline-block leading-tight`}>
-                          {s.label}
+                {/* Hover detail card — overlays node, minimal info */}
+                {isHovered && (() => {
+                  const role =
+                    kind === "sender"
+                      ? "Origin deposit"
+                      : kind === "exchange"
+                        ? "Destination"
+                        : kind === "sanctioned"
+                          ? "Sanctioned entity"
+                          : kind === "mixer"
+                            ? "Mixer"
+                            : incoming.length > 0 && outgoing.length > 0
+                              ? "Pass-through"
+                              : "Wallet";
+                  return (
+                    <div
+                      className="absolute inset-0 z-50 rounded-lg border-2 border-foreground/40 bg-popover shadow-2xl p-2.5 flex flex-col justify-center"
+                      onMouseEnter={() => setHoveredId(n.id)}
+                    >
+                      <div className={`text-[9px] font-semibold tracking-wider ${s.chip} rounded px-1 py-px inline-block leading-tight self-start`}>
+                        {role.toUpperCase()}
+                      </div>
+                      {data.address && (
+                        <div className="mt-1 text-[10px] font-mono break-all leading-tight">
+                          {data.address}
                         </div>
-                        <div className="text-[13px] font-medium leading-tight">{data.label}</div>
-                      </div>
+                      )}
                     </div>
-                    {data.address && (
-                      <div className="mt-2.5 rounded-md bg-muted/50 px-2 py-1.5">
-                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Address</div>
-                        <div className="text-[10px] font-mono break-all">{data.address}</div>
-                      </div>
-                    )}
-                    <div className="mt-2.5 grid grid-cols-2 gap-2 text-[11px]">
-                      <div className="rounded-md border px-2 py-1.5">
-                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Inflows</div>
-                        <div className="font-mono font-medium">{incoming.length}</div>
-                      </div>
-                      <div className="rounded-md border px-2 py-1.5">
-                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Outflows</div>
-                        <div className="font-mono font-medium">{outgoing.length}</div>
-                      </div>
-                    </div>
-                    {(incoming.length > 0 || outgoing.length > 0) && (
-                      <div className="mt-2 space-y-1">
-                        {incoming.slice(0, 2).map((e) => (
-                          <div key={e.id} className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
-                            <span className="text-[oklch(0.55_0.22_25)]">←</span>
-                            <span>{String(e.label ?? "transfer")}</span>
-                          </div>
-                        ))}
-                        {outgoing.slice(0, 2).map((e) => (
-                          <div key={e.id} className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
-                            <span className="text-foreground">→</span>
-                            <span>{String(e.label ?? "transfer")}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             );
           })}
