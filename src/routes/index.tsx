@@ -1,29 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ChainSightApp } from "@/components/chainsight/ChainSightApp";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Your App" },
-      { name: "description", content: "Replace this with a one-sentence description of your app." },
-      { property: "og:title", content: "Your App" },
-      { property: "og:description", content: "Replace this with a one-sentence description of your app." },
+      { title: "ChainSight — Deposit Screening" },
+      {
+        name: "description",
+        content:
+          "Sanctions-exposure screening for crypto exchange deposits. Trace sender history, review flagged cases, and decide with audit-grade evidence.",
+      },
+      { property: "og:title", content: "ChainSight — Deposit Screening" },
+      {
+        property: "og:description",
+        content:
+          "Sanctions-exposure screening for crypto exchange deposits, with on-chain transaction-graph evidence.",
+      },
     ],
   }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
+  return <ChainSightApp />;
 }
