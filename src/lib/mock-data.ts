@@ -34,6 +34,8 @@ export interface Deposit {
   graph?: DepositGraph;
   // Initial kanban column for REVIEW verdicts
   initialColumn?: KanbanColumn;
+  // Analyst id (key into ANALYSTS) assigned to this case
+  assigneeId?: string;
 }
 
 // ---- helpers to build graphs ----
