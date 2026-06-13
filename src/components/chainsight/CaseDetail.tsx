@@ -98,39 +98,16 @@ export function CaseDetail({
         </div>
 
         {/* Risk score + bar */}
-        <div className="mt-4 rounded-lg border bg-surface p-5">
-          <div className="flex items-end justify-between mb-3">
-            <div>
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                Risk score
-              </div>
-              <div className="font-mono text-5xl font-medium mt-1">
-                {deposit.riskScore}
-                <span className="text-base text-muted-foreground"> / 100</span>
-              </div>
-            </div>
-            <div className="text-xs text-muted-foreground max-w-xs text-right">
-              Thresholds are fixed by policy. Bands shown below correspond to Cleared,
-              Review, and Block zones.
-            </div>
-          </div>
+        <div className="mt-4">
           <RiskBar score={deposit.riskScore} />
         </div>
 
         {/* Graph */}
         <div className="mt-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-              Transaction graph
-            </h2>
-            <div className="text-xs text-muted-foreground">
-              Money flow, sanctioned origin → sender → exchange
-            </div>
-          </div>
           {deposit.graph ? (
-            <TransactionGraph nodes={deposit.graph.nodes} edges={deposit.graph.edges} />
+            <TransactionFlow nodes={deposit.graph.nodes} edges={deposit.graph.edges} />
           ) : (
-            <div className="rounded-lg border bg-surface p-10 text-center text-muted-foreground text-sm">
+            <div className="rounded-xl border bg-surface p-10 text-center text-muted-foreground text-sm">
               No upstream sanctions exposure detected. Graph not generated.
             </div>
           )}
@@ -138,26 +115,28 @@ export function CaseDetail({
 
         {/* Why + signals */}
         <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="rounded-lg border bg-surface p-5">
-            <div className="flex items-center gap-2 mb-2">
-              <ShieldCheck className="size-4 text-primary" />
-              <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-                Why this verdict
-              </h2>
-            </div>
-            <div className="space-y-2 text-sm leading-relaxed">
-              {deposit.reasons.map((r, i) => (
-                <p key={i}>{r}</p>
-              ))}
+          <div className="relative rounded-xl border bg-surface p-5 overflow-hidden">
+            <div
+              className="absolute left-0 top-0 bottom-0 w-1"
+              style={{ background: "oklch(0.62 0.18 55)" }}
+            />
+            <div className="pl-2">
+              <div className="flex items-center gap-2 mb-3">
+                <BookOpen className="size-4 text-[oklch(0.55_0.18_55)]" />
+                <h2 className="text-sm font-medium">Why this verdict</h2>
+              </div>
+              <div className="space-y-2.5 text-sm leading-relaxed text-foreground/85">
+                {deposit.reasons.map((r, i) => (
+                  <p key={i}>{r}</p>
+                ))}
+              </div>
             </div>
           </div>
 
           <div>
-            <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground mb-2">
-              Signal breakdown
-            </h2>
             <SignalBreakdown deposit={deposit} />
           </div>
+
         </div>
 
         {/* Audit note + actions */}
