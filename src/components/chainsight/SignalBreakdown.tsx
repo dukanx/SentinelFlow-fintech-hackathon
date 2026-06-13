@@ -6,22 +6,22 @@ export function SignalBreakdown({ deposit }: { deposit: Deposit }) {
   const items = [
     {
       icon: GitBranch,
-      label: "Distance to nearest sanctioned",
+      label: "Distance to sanctioned",
       value:
         s.hopsToSanctioned >= 99
           ? "None within trace"
-          : `${s.hopsToSanctioned} hop${s.hopsToSanctioned === 1 ? "" : "s"}`,
+          : `${s.hopsToSanctioned} hops`,
       tone: s.hopsToSanctioned === 0 ? "blocked" : s.hopsToSanctioned <= 3 ? "review" : "cleared",
     },
     {
       icon: AlertTriangle,
       label: "Mixer in path",
-      value: s.mixerInPath ? (s.mixerLabel ?? "Yes") : "No",
-      tone: s.mixerInPath ? "review" : "cleared",
+      value: s.mixerInPath ? `Yes · ${s.mixerLabel ?? "Known mixer"}` : "No",
+      tone: s.mixerInPath ? "blocked" : "cleared",
     },
     {
       icon: Coins,
-      label: "Exposed volume",
+      label: "Total exposed volume",
       value: s.exposedVolume,
       tone: "muted",
     },
@@ -34,27 +34,32 @@ export function SignalBreakdown({ deposit }: { deposit: Deposit }) {
   ] as const;
 
   return (
-    <div className="rounded-lg border bg-surface divide-y">
-      {items.map((it) => {
-        const Icon = it.icon;
-        const toneClass =
-          it.tone === "blocked"
-            ? "text-verdict-blocked"
-            : it.tone === "review"
-              ? "text-verdict-review"
-              : it.tone === "cleared"
-                ? "text-verdict-cleared"
-                : "text-foreground";
-        return (
-          <div key={it.label} className="flex items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-2.5">
-              <Icon className="size-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">{it.label}</span>
+    <div className="rounded-xl border bg-surface overflow-hidden">
+      <div className="px-5 py-3 border-b">
+        <h3 className="text-sm font-medium">Signal breakdown</h3>
+      </div>
+      <div className="divide-y">
+        {items.map((it) => {
+          const Icon = it.icon;
+          const toneClass =
+            it.tone === "blocked"
+              ? "text-[oklch(0.55_0.22_25)]"
+              : it.tone === "review"
+                ? "text-[oklch(0.58_0.18_55)]"
+                : it.tone === "cleared"
+                  ? "text-[oklch(0.45_0.16_152)]"
+                  : "text-foreground";
+          return (
+            <div key={it.label} className="flex items-center justify-between px-5 py-3">
+              <div className="flex items-center gap-2.5">
+                <Icon className="size-3.5 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">{it.label}</span>
+              </div>
+              <span className={`text-sm font-medium ${toneClass}`}>{it.value}</span>
             </div>
-            <span className={`text-sm font-mono ${toneClass}`}>{it.value}</span>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
