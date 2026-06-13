@@ -2,7 +2,7 @@ import { BLOCK_THRESHOLD, REVIEW_THRESHOLD } from "@/lib/config";
 
 interface Props {
   score: number;
-  width?: number; // px
+  width?: number; // px; omit for 100%
   showMarker?: boolean;
 }
 
@@ -10,14 +10,15 @@ interface Props {
  * Compact segmented risk bar — green / amber / red zones with a marker
  * positioned at the score. Used inline in tables and rows.
  */
-export function RiskMiniBar({ score, width = 110, showMarker = true }: Props) {
+export function RiskMiniBar({ score, width, showMarker = true }: Props) {
   const clamped = Math.max(0, Math.min(100, score));
-  const reviewW = REVIEW_THRESHOLD; // 0..REVIEW
-  const blockW = BLOCK_THRESHOLD - REVIEW_THRESHOLD; // REVIEW..BLOCK
+  const reviewW = REVIEW_THRESHOLD;
+  const blockW = BLOCK_THRESHOLD - REVIEW_THRESHOLD;
   const dangerW = 100 - BLOCK_THRESHOLD;
 
   return (
-    <div className="relative" style={{ width }}>
+    <div className="relative" style={width ? { width } : { width: "100%" }}>
+
       <div className="flex h-2 w-full overflow-hidden rounded-full">
         <div
           className="bg-verdict-cleared"

@@ -31,7 +31,7 @@ export function KanbanCard({ deposit, onOpen, onAdvance, advanceLabel, column }:
       </div>
 
       <div className="mt-3">
-        <RiskMiniBar score={d.riskScore} width={undefined as unknown as number} />
+        <RiskMiniBar score={d.riskScore} />
       </div>
 
       <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
