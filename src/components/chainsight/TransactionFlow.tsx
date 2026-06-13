@@ -241,11 +241,23 @@ export function TransactionFlow({ nodes, edges }: Props) {
             const s = nodeStyles(kind);
             const data = n.data as { label: string; address?: string };
             const Icon = s.Icon;
+            const isHovered = hoveredId === n.id;
+            const dimmed = hoveredId && !connectedNodes.has(n.id);
+            const incoming = edges.filter((e) => e.target === n.id);
+            const outgoing = edges.filter((e) => e.source === n.id);
             return (
               <div
                 key={n.id}
-                className={`absolute rounded-lg border shadow-sm ${s.wrap} transition-shadow hover:shadow-md`}
-                style={{ left: pos.x, top: pos.y, width: NODE_W, height: NODE_H }}
+                onMouseEnter={() => setHoveredId(n.id)}
+                onMouseLeave={() => setHoveredId(null)}
+                className={`absolute rounded-lg border shadow-sm ${s.wrap} cursor-pointer transition-all duration-200 ${isHovered ? "shadow-lg scale-[1.03] z-20" : "hover:shadow-md"}`}
+                style={{
+                  left: pos.x,
+                  top: pos.y,
+                  width: NODE_W,
+                  height: NODE_H,
+                  opacity: dimmed ? 0.35 : 1,
+                }}
               >
                 <div className="flex items-center gap-2.5 px-2.5 py-2 h-full">
                   <span className={`size-7 grid place-items-center rounded-md ${s.iconBg}`}>
@@ -265,6 +277,58 @@ export function TransactionFlow({ nodes, edges }: Props) {
                     )}
                   </div>
                 </div>
+
+                {/* Hover detail card */}
+                {isHovered && (
+                  <div
+                    className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-30 w-72 rounded-lg border bg-popover shadow-xl p-3 animate-in fade-in slide-in-from-top-1 duration-150"
+                    onMouseEnter={() => setHoveredId(n.id)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`size-7 grid place-items-center rounded-md ${s.iconBg}`}>
+                        <Icon className="size-3.5" strokeWidth={2.2} />
+                      </span>
+                      <div className="min-w-0">
+                        <div className={`text-[9px] font-semibold tracking-wider ${s.chip} rounded px-1 py-px inline-block leading-tight`}>
+                          {s.label}
+                        </div>
+                        <div className="text-[13px] font-medium leading-tight">{data.label}</div>
+                      </div>
+                    </div>
+                    {data.address && (
+                      <div className="mt-2.5 rounded-md bg-muted/50 px-2 py-1.5">
+                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Address</div>
+                        <div className="text-[10px] font-mono break-all">{data.address}</div>
+                      </div>
+                    )}
+                    <div className="mt-2.5 grid grid-cols-2 gap-2 text-[11px]">
+                      <div className="rounded-md border px-2 py-1.5">
+                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Inflows</div>
+                        <div className="font-mono font-medium">{incoming.length}</div>
+                      </div>
+                      <div className="rounded-md border px-2 py-1.5">
+                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Outflows</div>
+                        <div className="font-mono font-medium">{outgoing.length}</div>
+                      </div>
+                    </div>
+                    {(incoming.length > 0 || outgoing.length > 0) && (
+                      <div className="mt-2 space-y-1">
+                        {incoming.slice(0, 2).map((e) => (
+                          <div key={e.id} className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
+                            <span className="text-[oklch(0.55_0.22_25)]">←</span>
+                            <span>{String(e.label ?? "transfer")}</span>
+                          </div>
+                        ))}
+                        {outgoing.slice(0, 2).map((e) => (
+                          <div key={e.id} className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
+                            <span className="text-foreground">→</span>
+                            <span>{String(e.label ?? "transfer")}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
