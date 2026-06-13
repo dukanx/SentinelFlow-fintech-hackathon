@@ -1,11 +1,14 @@
-import { X, Ban, FileText, CheckCircle2, ShieldCheck } from "lucide-react";
+import { X, Ban, FileText, CheckCircle2, BookOpen } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Deposit, KanbanColumn } from "@/lib/mock-data";
-import { TransactionGraph } from "./TransactionGraph";
+import { TransactionFlow } from "./TransactionFlow";
 import { SignalBreakdown } from "./SignalBreakdown";
 import { RiskBar } from "./RiskBar";
 import { VerdictBadge } from "./VerdictBadge";
 import { AnalystAvatar } from "./AnalystAvatar";
+import { truncateAddress, formatDateTime, nowHHMM } from "@/lib/format";
+import { EXCHANGE_HOT_WALLET, EXCHANGE_NAME } from "@/lib/config";
+import { buildDefaultAuditNote } from "@/lib/verdict";
 import { truncateAddress, formatDateTime, nowHHMM } from "@/lib/format";
 import { EXCHANGE_HOT_WALLET, EXCHANGE_NAME } from "@/lib/config";
 import { buildDefaultAuditNote } from "@/lib/verdict";
