@@ -9,9 +9,6 @@ import { AnalystAvatar } from "./AnalystAvatar";
 import { truncateAddress, formatDateTime, nowHHMM } from "@/lib/format";
 import { EXCHANGE_HOT_WALLET, EXCHANGE_NAME } from "@/lib/config";
 import { buildDefaultAuditNote } from "@/lib/verdict";
-import { truncateAddress, formatDateTime, nowHHMM } from "@/lib/format";
-import { EXCHANGE_HOT_WALLET, EXCHANGE_NAME } from "@/lib/config";
-import { buildDefaultAuditNote } from "@/lib/verdict";
 
 interface Props {
   deposit: Deposit;
