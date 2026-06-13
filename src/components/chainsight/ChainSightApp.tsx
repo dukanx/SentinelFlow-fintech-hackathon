@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { ShieldCheck, Inbox, Ban, CheckCircle2, ListTree, ChevronUp } from "lucide-react";
-import { deposits as seedDeposits } from "@/lib/mock-data";
+import { ShieldCheck, Inbox, Ban, CheckCircle2, ListTree, ChevronUp, Wallet } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import type { Deposit, KanbanColumn, Verdict } from "@/lib/mock-data";
+import { useDeposits } from "@/lib/deposit-store";
 import { CURRENT_ANALYST } from "@/lib/config";
 import { StatCards } from "./StatCards";
 import { NeedsReviewBoard } from "./NeedsReviewBoard";
