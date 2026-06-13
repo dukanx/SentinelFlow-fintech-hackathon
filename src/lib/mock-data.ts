@@ -121,6 +121,7 @@ export const deposits: Deposit[] = [
     riskScore: 99,
     verdict: "BLOCKED",
     directHit: true,
+    assigneeId: "mr",
     reasons: [
       "Sender address is itself listed on the OFAC SDN list, attributed to the Lazarus Group.",
       "Policy requires automatic rejection of any deposit from a directly sanctioned address.",
@@ -150,6 +151,7 @@ export const deposits: Deposit[] = [
     verdict: "REVIEW",
     directHit: false,
     initialColumn: "pending",
+    assigneeId: "mr",
     reasons: [
       "Funds reached this sender 2 hops after leaving an OFAC-sanctioned Lazarus Group address.",
       "The path includes a transfer through Tornado Cash, a known mixer used to obscure origin.",
@@ -185,6 +187,7 @@ export const deposits: Deposit[] = [
     verdict: "REVIEW",
     directHit: false,
     initialColumn: "pending",
+    assigneeId: "jk",
     reasons: [
       "Sender received funds 3 hops downstream from a sanctioned exchange (Garantex).",
       "No mixer detected in the path; exposure share is moderate but above policy threshold.",
@@ -218,6 +221,7 @@ export const deposits: Deposit[] = [
     verdict: "REVIEW",
     directHit: false,
     initialColumn: "awaiting",
+    assigneeId: "ap",
     reasons: [
       "Sender is 2 hops from an OFAC-sanctioned address with significant exposed volume.",
       "EDD requested 3 hours ago — awaiting source-of-funds documentation from depositor.",
@@ -250,6 +254,7 @@ export const deposits: Deposit[] = [
     verdict: "REVIEW",
     directHit: false,
     initialColumn: "ready",
+    assigneeId: "sc",
     reasons: [
       "Funds reached sender 3 hops from a sanctioned exchange via Tornado Cash mixer.",
       "Depositor has submitted source-of-funds documentation; analyst must re-review.",
