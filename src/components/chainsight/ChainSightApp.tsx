@@ -126,6 +126,19 @@ export function ChainSightApp() {
           })}
         </nav>
 
+        <div className="px-2 pt-2">
+          <Link
+            to="/wallet"
+            className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground transition-colors"
+          >
+            <Wallet className="size-4" />
+            Demo wallet
+            <span className="ml-auto text-[10px] uppercase tracking-wider opacity-60">
+              external
+            </span>
+          </Link>
+        </div>
+
         <div className="mt-auto border-t border-sidebar-border">
           <div className="px-4 py-3">
             <div className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
