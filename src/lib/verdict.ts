@@ -22,5 +22,5 @@ export function buildDefaultAuditNote(d: Deposit): string {
     parts.push(`Exposed volume: ${d.signals.exposedVolume}. Recommend analyst review.`);
     return parts.join(" ");
   }
-  return "No sanctions exposure detected within traced hops. Auto-cleared.";
+  return "No sanctions exposure detected within traced hops. Auto-accepted.";
 }

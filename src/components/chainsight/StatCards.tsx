@@ -15,7 +15,7 @@ export function StatCards({ deposits }: Props) {
     { label: "Deposits today", value: today, accent: "text-foreground" },
     { label: "Needs review", value: needsReview, accent: "text-verdict-review" },
     { label: "Blocked", value: blocked, accent: "text-verdict-blocked" },
-    { label: "Cleared", value: cleared, accent: "text-verdict-cleared" },
+    { label: "Accepted", value: cleared, accent: "text-verdict-cleared" },
   ];
 
   return (

@@ -1,7 +1,7 @@
 export const REVIEW_THRESHOLD = 35;
 export const BLOCK_THRESHOLD = 85;
 
-export const EXCHANGE_HOT_WALLET = "0xE1C7…dF02";
+export const EXCHANGE_HOT_WALLET = "0xe1c7df02b8a4566d801a6e96217554a0e310ec88";
 export const EXCHANGE_NAME = "ChainSight Exchange Hot Wallet";
 
 export const KNOWN_LABELS = {

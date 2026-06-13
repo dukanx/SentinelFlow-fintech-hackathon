@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ShieldCheck, Inbox, Ban, CheckCircle2, ListTree, ChevronUp, Wallet } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import type { Deposit, KanbanColumn, Verdict } from "@/lib/mock-data";
-import { useDeposits } from "@/lib/deposit-store";
+import { loadRiskDeposits, useDeposits } from "@/lib/deposit-store";
 import { CURRENT_ANALYST } from "@/lib/config";
 import { StatCards } from "./StatCards";
 import { NeedsReviewBoard } from "./NeedsReviewBoard";
@@ -14,7 +14,7 @@ type NavId = "review" | "blocked" | "cleared" | "all";
 const NAV: { id: NavId; label: string; icon: typeof Inbox }[] = [
   { id: "review", label: "Needs Review", icon: Inbox },
   { id: "blocked", label: "Blocked", icon: Ban },
-  { id: "cleared", label: "Cleared", icon: CheckCircle2 },
+  { id: "cleared", label: "Accepted", icon: CheckCircle2 },
   { id: "all", label: "All", icon: ListTree },
 ];
 
@@ -28,6 +28,10 @@ export function ChainSightApp() {
   // Kanban columns for REVIEW cases (only meaningful if verdict still REVIEW)
   const [columns, setColumns] = useState<Record<string, KanbanColumn>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    void loadRiskDeposits();
+  }, []);
 
   // Apply overrides + seed columns/notes for newly added deposits
   const allDeposits: Deposit[] = useMemo(() => {
@@ -79,7 +83,7 @@ export function ChainSightApp() {
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       {/* Sidebar */}
-      <aside className="hidden md:flex flex-col w-60 bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
+      <aside className="hidden md:flex flex-col w-60 shrink-0 sticky top-0 h-screen overflow-y-auto bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
         <div className="px-5 py-5 flex items-center gap-2.5 border-b border-sidebar-border">
           <div className="size-8 rounded-md bg-primary/15 grid place-items-center">
             <ShieldCheck className="size-4 text-primary" />
@@ -180,7 +184,7 @@ export function ChainSightApp() {
                 : nav === "blocked"
                   ? "Deposits rejected — direct sanctions hits or analyst-blocked."
                   : nav === "cleared"
-                    ? "Deposits accepted — auto-cleared or analyst-approved."
+                    ? "Deposits accepted — auto-accepted or analyst-approved."
                     : "All incoming deposits screened in the last 24 hours."}
             </p>
           </div>
@@ -214,7 +218,7 @@ export function ChainSightApp() {
             <DepositTable
               deposits={clearedDeposits}
               onOpen={(d) => setSelectedId(d.id)}
-              emptyLabel="No cleared deposits."
+              emptyLabel="No accepted deposits."
             />
           )}
 

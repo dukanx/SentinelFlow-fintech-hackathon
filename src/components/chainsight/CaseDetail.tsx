@@ -146,17 +146,25 @@ export function CaseDetail({
               Audit note
             </h2>
             <span className="text-xs text-muted-foreground">
-              Pre-filled from verdict reasoning. Editable.
+              {isTerminal
+                ? "Locked — terminal verdict, note is read-only."
+                : "Pre-filled from verdict reasoning. Editable."}
             </span>
           </div>
           <textarea
             value={note}
+            readOnly={isTerminal}
             onChange={(e) => {
+              if (isTerminal) return;
               setNote(e.target.value);
               onAuditNoteChange(e.target.value);
             }}
             rows={4}
-            className="w-full rounded-md border bg-background/40 px-3 py-2 text-sm font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring resize-y"
+            className={`w-full rounded-md border px-3 py-2 text-sm font-mono leading-relaxed focus:outline-none resize-y ${
+              isTerminal
+                ? "bg-muted/40 text-muted-foreground cursor-not-allowed"
+                : "bg-background/40 focus:ring-2 focus:ring-ring"
+            }`}
           />
 
           {isReview && (

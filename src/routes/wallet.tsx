@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Copy, Check, ShieldCheck, ExternalLink, RefreshCw } from "lucide-react";
-import { createWalletDeposit, depositStore } from "@/lib/deposit-store";
+import { ArrowDown, ArrowUp, Copy, Check, ShieldCheck, ExternalLink, RefreshCw, CheckCircle2, X } from "lucide-react";
+import { createWalletDepositFromBackend, depositStore } from "@/lib/deposit-store";
 import { EXCHANGE_HOT_WALLET } from "@/lib/config";
 
 export const Route = createFileRoute("/wallet")({
@@ -26,13 +26,25 @@ interface Tx {
   flagged?: boolean;
 }
 
+const TOKEN = "ETH" as const;
+
+function shortenAddress(addr: string): string {
+  return addr.length > 12 ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : addr;
+}
+
+function randomTxHash(): string {
+  let hash = "0x";
+  for (let i = 0; i < 64; i++) hash += "0123456789abcdef"[Math.floor(Math.random() * 16)];
+  return hash;
+}
+
 function WalletPage() {
   const [balance, setBalance] = useState(0.59755);
   const [recipient, setRecipient] = useState(EXCHANGE_HOT_WALLET);
   const [amount, setAmount] = useState("0.4");
-  const [token, setToken] = useState<"ETH" | "USDC" | "BTC">("ETH");
   const [copied, setCopied] = useState(false);
-  const [sent, setSent] = useState<{ id: string; amount: string; token: string } | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{ hash: string; amount: string; to: string } | null>(null);
   const [history, setHistory] = useState<Tx[]>([
     {
       id: "tx-seed-1",
@@ -66,28 +78,37 @@ function WalletPage() {
 
   function handleSend() {
     const amt = parseFloat(amount);
-    if (!amt || amt <= 0 || !recipient) return;
-    const dep = createWalletDeposit({
-      sender: WALLET_ADDRESS,
-      amount: amount,
-      token,
-      recipient,
-    });
-    depositStore.add(dep);
+    if (!amt || amt <= 0 || !recipient || success) return;
+    if (amt > balance) {
+      setSendError(`Insufficient balance — you only have ${balance.toFixed(5)} ETH.`);
+      return;
+    }
+    setSendError(null);
+
+    // Optimistic, instant confirmation — the transaction "lands" right away.
+    const hash = randomTxHash();
+    setBalance((b) => Math.max(0, b - amt));
     setHistory((h) => [
       {
-        id: dep.id,
+        id: hash,
         kind: "out",
         amount,
-        token,
-        counterparty: recipient.length > 12 ? `${recipient.slice(0, 6)}…${recipient.slice(-4)}` : recipient,
+        token: TOKEN,
+        counterparty: shortenAddress(recipient),
         at: new Date(),
         flagged: true,
       },
       ...h,
     ]);
-    setBalance((b) => Math.max(0, b - amt));
-    setSent({ id: dep.id, amount, token });
+    setSuccess({ hash, amount, to: recipient });
+
+    // Submit to ChainSight screening in the background so the popup isn't blocked.
+    createWalletDepositFromBackend({ sender: WALLET_ADDRESS, amount, token: TOKEN, recipient })
+      .then((dep) => depositStore.add(dep))
+      .catch((error) => {
+        console.error(error);
+        setSendError("Screening backend nije dostupan — provjeri da Python risk API radi.");
+      });
   }
 
   return (
@@ -181,30 +202,22 @@ function WalletPage() {
                 inputMode="decimal"
                 className="flex-1 bg-black/30 border border-white/10 rounded-md px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-orange-400/50"
               />
-              <select
-                value={token}
-                onChange={(e) => setToken(e.target.value as typeof token)}
-                className="bg-black/30 border border-white/10 rounded-md px-2 py-2 text-sm text-white focus:outline-none"
-              >
-                <option>ETH</option>
-                <option>USDC</option>
-                <option>BTC</option>
-              </select>
+              <span className="inline-flex items-center gap-1.5 bg-black/30 border border-white/10 rounded-md px-3 py-2 text-sm font-medium text-white">
+                <span className="size-4 rounded-full bg-indigo-500/80 grid place-items-center text-[9px] font-bold">Ξ</span>
+                ETH
+              </span>
             </div>
             <button
               onClick={handleSend}
-              className="mt-3 w-full rounded-md bg-orange-500 hover:bg-orange-600 transition-colors py-2.5 text-sm font-semibold text-white"
+              disabled={parseFloat(amount) > balance}
+              className="mt-3 w-full rounded-md bg-orange-500 hover:bg-orange-600 transition-colors py-2.5 text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-orange-500"
             >
-              Send
+              {parseFloat(amount) > balance ? "Insufficient balance" : "Send"}
             </button>
 
-            {sent && (
-              <div className="mt-3 rounded-md bg-emerald-500/10 border border-emerald-400/30 px-3 py-2 text-xs text-emerald-200">
-                Sent {sent.amount} {sent.token}. ChainSight flagged this deposit —{" "}
-                <Link to="/" className="underline font-medium">
-                  view in dashboard
-                </Link>
-                .
+            {sendError && (
+              <div className="mt-3 rounded-md bg-rose-500/10 border border-rose-400/40 px-3 py-2 text-xs text-rose-200">
+                {sendError}
               </div>
             )}
           </div>
@@ -245,6 +258,57 @@ function WalletPage() {
           </div>
         </div>
       </div>
+
+      {/* Success popup */}
+      {success && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setSuccess(null)}
+        >
+          <div
+            className="w-full max-w-xs rounded-2xl bg-[oklch(0.20_0.01_260)] text-white shadow-2xl border border-white/10 p-6 text-center relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setSuccess(null)}
+              className="absolute top-3 right-3 text-white/40 hover:text-white transition-colors"
+              aria-label="Close"
+            >
+              <X className="size-4" />
+            </button>
+            <div className="mx-auto size-14 rounded-full bg-emerald-500/15 grid place-items-center">
+              <CheckCircle2 className="size-8 text-emerald-400" />
+            </div>
+            <div className="mt-4 text-lg font-semibold">Transaction sent</div>
+            <div className="mt-1 text-2xl font-bold text-orange-400">
+              -{success.amount} ETH
+            </div>
+            <div className="mt-3 space-y-1 text-xs text-white/60">
+              <div>
+                To <span className="font-mono text-white/80">{shortenAddress(success.to)}</span>
+              </div>
+              <div className="font-mono break-all">{shortenAddress(success.hash)}</div>
+            </div>
+            <div className="mt-4 rounded-md bg-amber-500/10 border border-amber-400/30 px-3 py-2 text-[11px] text-amber-200">
+              Confirmed on-chain · submitted to ChainSight for screening
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setSuccess(null)}
+                className="flex-1 rounded-md bg-white/10 hover:bg-white/15 transition-colors py-2 text-sm font-medium"
+              >
+                Done
+              </button>
+              <Link
+                to="/"
+                className="flex-1 rounded-md bg-orange-500 hover:bg-orange-600 transition-colors py-2 text-sm font-semibold grid place-items-center"
+              >
+                View in dashboard
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

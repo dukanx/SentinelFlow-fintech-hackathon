@@ -7,7 +7,7 @@ const styles: Record<Verdict, string> = {
 };
 
 const labels: Record<Verdict, string> = {
-  CLEARED: "Cleared",
+  CLEARED: "Accepted",
   REVIEW: "Review",
   BLOCKED: "Blocked",
 };

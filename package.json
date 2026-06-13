@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
+    "api": "py -m uvicorn scripts.risk_api_server:app --port 8000",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
