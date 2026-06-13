@@ -80,8 +80,8 @@ export function CaseDetail({
           </div>
         </div>
 
-        {/* Deposit summary */}
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 rounded-lg border bg-surface p-5">
+        {/* Deposit summary — separate cards */}
+        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
           <Field label="Sender" value={truncateAddress(deposit.sender, 8, 6)} mono />
           <Field
             label="Amount"
