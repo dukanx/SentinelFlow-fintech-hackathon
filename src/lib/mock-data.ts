@@ -45,7 +45,7 @@ function col(i: number) {
   return { x: i * (NODE_W + 80), y: 0 };
 }
 
-function makeGraph(opts: {
+export function makeGraph(opts: {
   sender: string;
   hops: { id: string; label: string; kind: GraphNodeKind; amount: string }[];
   endpointFlow: string; // amount into exchange
