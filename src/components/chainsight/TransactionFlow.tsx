@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import { Ban, Wallet, Shuffle, Coins, Building2, Network } from "lucide-react";
 import { truncateAddress } from "@/lib/format";
@@ -10,12 +10,12 @@ interface Props {
 
 type Kind = "sanctioned" | "wallet" | "mixer" | "intermediary" | "sender" | "exchange";
 
-const NODE_W = 168;
-const NODE_H = 64;
-const COL_GAP = 56;
-const ROW_GAP = 32;
-const PAD_X = 28;
-const PAD_Y = 36;
+const NODE_W = 180;
+const NODE_H = 68;
+const COL_GAP = 120;
+const ROW_GAP = 56;
+const PAD_X = 36;
+const PAD_Y = 44;
 
 function nodeStyles(kind: Kind) {
   switch (kind) {
