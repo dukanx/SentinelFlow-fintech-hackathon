@@ -1,6 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Copy, Check, ShieldCheck, ExternalLink, RefreshCw, CheckCircle2, X } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Copy,
+  Check,
+  ShieldCheck,
+  ExternalLink,
+  RefreshCw,
+  CheckCircle2,
+  X,
+} from "lucide-react";
 import { createWalletDepositFromBackend, depositStore } from "@/lib/deposit-store";
 import { EXCHANGE_HOT_WALLET } from "@/lib/config";
 
@@ -8,13 +18,16 @@ export const Route = createFileRoute("/wallet")({
   head: () => ({
     meta: [
       { title: "Demo Wallet — ChainSight" },
-      { name: "description", content: "Mockup wallet used to demonstrate ChainSight deposit screening." },
+      {
+        name: "description",
+        content: "Mockup wallet used to demonstrate ChainSight deposit screening.",
+      },
     ],
   }),
   component: WalletPage,
 });
 
-const WALLET_ADDRESS = "0x1488e397bc44c56d801a6e96217554a0e310ecb5";
+const WALLET_ADDRESS = "RQFwdRxm4vrTRybpdfiHa9eSEiQdpVLPaSXteRXj1S1A";
 
 interface Tx {
   id: string;
@@ -26,16 +39,18 @@ interface Tx {
   flagged?: boolean;
 }
 
-const TOKEN = "ETH" as const;
+const TOKEN = "SOL" as const;
+const BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 function shortenAddress(addr: string): string {
   return addr.length > 12 ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : addr;
 }
 
 function randomTxHash(): string {
-  let hash = "0x";
-  for (let i = 0; i < 64; i++) hash += "0123456789abcdef"[Math.floor(Math.random() * 16)];
-  return hash;
+  // Solana transaction signatures are base58-encoded (~88 chars).
+  let sig = "";
+  for (let i = 0; i < 88; i++) sig += BASE58[Math.floor(Math.random() * BASE58.length)];
+  return sig;
 }
 
 function WalletPage() {
@@ -50,23 +65,23 @@ function WalletPage() {
       id: "tx-seed-1",
       kind: "out",
       amount: "0.4",
-      token: "ETH",
-      counterparty: "0x63a3…6bdb",
+      token: "SOL",
+      counterparty: "7Xb2pQ…q9Fk",
       at: new Date(Date.now() - 1000 * 60 * 60 * 4),
     },
     {
       id: "tx-seed-2",
       kind: "in",
       amount: "0.998",
-      token: "ETH",
-      counterparty: "0x9a12…ff04",
+      token: "SOL",
+      counterparty: "9mPqLd…2vLd",
       at: new Date(Date.now() - 1000 * 60 * 60 * 5),
     },
   ]);
 
   const qrSrc = useMemo(
     () =>
-      `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=0&data=ethereum:${WALLET_ADDRESS}`,
+      `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=0&data=solana:${WALLET_ADDRESS}`,
     [],
   );
 
@@ -80,7 +95,7 @@ function WalletPage() {
     const amt = parseFloat(amount);
     if (!amt || amt <= 0 || !recipient || success) return;
     if (amt > balance) {
-      setSendError(`Insufficient balance — you only have ${balance.toFixed(5)} ETH.`);
+      setSendError(`Insufficient balance — you only have ${balance.toFixed(5)} SOL.`);
       return;
     }
     setSendError(null);
@@ -104,7 +119,7 @@ function WalletPage() {
 
     // Submit to ChainSight screening in the background so the popup isn't blocked.
     createWalletDepositFromBackend({ sender: WALLET_ADDRESS, amount, token: TOKEN, recipient })
-      .then((dep) => depositStore.add(dep))
+      .then((dep) => depositStore.add(dep, { announce: true }))
       .catch((error) => {
         console.error(error);
         setSendError("Screening backend nije dostupan — provjeri da Python risk API radi.");
@@ -129,12 +144,16 @@ function WalletPage() {
             <div className="text-orange-400 font-bold text-xl tracking-tight">Jaxx</div>
             <div className="flex items-center gap-3 text-xs text-white/70">
               <span className="inline-flex items-center gap-1">
-                <span className="size-4 rounded-full bg-orange-500/80 grid place-items-center text-[9px] font-bold">₿</span>
+                <span className="size-4 rounded-full bg-orange-500/80 grid place-items-center text-[9px] font-bold">
+                  ₿
+                </span>
                 BTC
               </span>
               <span className="inline-flex items-center gap-1">
-                <span className="size-4 rounded-full bg-indigo-500/80 grid place-items-center text-[9px] font-bold">Ξ</span>
-                ETH
+                <span className="size-4 rounded-full bg-purple-500/80 grid place-items-center text-[9px] font-bold">
+                  ◎
+                </span>
+                SOL
               </span>
             </div>
           </div>
@@ -154,14 +173,18 @@ function WalletPage() {
           {/* Address */}
           <div className="px-5 pt-4">
             <div className="text-[11px] uppercase tracking-wider text-white/50">
-              Your current Ethereum address
+              Your current Solana address
             </div>
             <button
               onClick={copyAddr}
               className="mt-1 flex items-center gap-2 text-xs font-mono text-white/80 hover:text-white"
             >
               <span className="truncate max-w-[230px]">{WALLET_ADDRESS}</span>
-              {copied ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
+              {copied ? (
+                <Check className="size-3.5 text-emerald-400" />
+              ) : (
+                <Copy className="size-3.5" />
+              )}
             </button>
           </div>
 
@@ -169,30 +192,22 @@ function WalletPage() {
           <div className="px-5 pt-4 pb-2 flex items-start justify-between">
             <div>
               <RefreshCw className="size-4 text-white/40 mb-2" />
-              <div className="text-orange-400 text-sm font-medium">ETH</div>
+              <div className="text-orange-400 text-sm font-medium">SOL</div>
               <div className="text-orange-400 text-3xl font-bold tracking-tight">
                 {balance.toFixed(5)}
               </div>
-              <div className="text-white/50 text-sm mt-1">
-                ${(balance * 3380).toFixed(2)}
-              </div>
+              <div className="text-white/50 text-sm mt-1">${(balance * 152.4).toFixed(2)}</div>
             </div>
-            <img
-              src={qrSrc}
-              alt="Wallet QR code"
-              className="size-28 rounded bg-white p-1"
-            />
+            <img src={qrSrc} alt="Wallet QR code" className="size-28 rounded bg-white p-1" />
           </div>
 
           {/* Send form */}
           <div className="mx-5 mt-4 mb-5 rounded-xl bg-white/5 border border-white/10 p-4">
-            <div className="text-[11px] uppercase tracking-wider text-white/50 mb-2">
-              Send to
-            </div>
+            <div className="text-[11px] uppercase tracking-wider text-white/50 mb-2">Send to</div>
             <input
               value={recipient}
               onChange={(e) => setRecipient(e.target.value)}
-              placeholder="0x…"
+              placeholder="Recipient address…"
               className="w-full bg-black/30 border border-white/10 rounded-md px-3 py-2 text-xs font-mono text-white placeholder:text-white/30 focus:outline-none focus:border-orange-400/50"
             />
             <div className="mt-3 flex gap-2">
@@ -203,8 +218,10 @@ function WalletPage() {
                 className="flex-1 bg-black/30 border border-white/10 rounded-md px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-orange-400/50"
               />
               <span className="inline-flex items-center gap-1.5 bg-black/30 border border-white/10 rounded-md px-3 py-2 text-sm font-medium text-white">
-                <span className="size-4 rounded-full bg-indigo-500/80 grid place-items-center text-[9px] font-bold">Ξ</span>
-                ETH
+                <span className="size-4 rounded-full bg-purple-500/80 grid place-items-center text-[9px] font-bold">
+                  ◎
+                </span>
+                SOL
               </span>
             </div>
             <button
@@ -239,9 +256,7 @@ function WalletPage() {
                     </div>
                     <div className="text-white/50">
                       {tx.kind === "out" ? `Sent to · ${tx.counterparty}` : "Confirmed"}
-                      {tx.flagged && (
-                        <span className="ml-2 text-amber-300">· flagged</span>
-                      )}
+                      {tx.flagged && <span className="ml-2 text-amber-300">· flagged</span>}
                     </div>
                   </div>
                   <div
@@ -262,11 +277,11 @@ function WalletPage() {
       {/* Success popup */}
       {success && (
         <div
-          className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
           onClick={() => setSuccess(null)}
         >
           <div
-            className="w-full max-w-xs rounded-2xl bg-[oklch(0.20_0.01_260)] text-white shadow-2xl border border-white/10 p-6 text-center relative"
+            className="w-full max-w-xs rounded-2xl bg-[oklch(0.20_0.01_260)] text-white shadow-2xl border border-white/10 p-6 text-center relative animate-pop-in"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -280,9 +295,7 @@ function WalletPage() {
               <CheckCircle2 className="size-8 text-emerald-400" />
             </div>
             <div className="mt-4 text-lg font-semibold">Transaction sent</div>
-            <div className="mt-1 text-2xl font-bold text-orange-400">
-              -{success.amount} ETH
-            </div>
+            <div className="mt-1 text-2xl font-bold text-orange-400">-{success.amount} SOL</div>
             <div className="mt-3 space-y-1 text-xs text-white/60">
               <div>
                 To <span className="font-mono text-white/80">{shortenAddress(success.to)}</span>
@@ -292,19 +305,13 @@ function WalletPage() {
             <div className="mt-4 rounded-md bg-amber-500/10 border border-amber-400/30 px-3 py-2 text-[11px] text-amber-200">
               Confirmed on-chain · submitted to ChainSight for screening
             </div>
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4">
               <button
                 onClick={() => setSuccess(null)}
-                className="flex-1 rounded-md bg-white/10 hover:bg-white/15 transition-colors py-2 text-sm font-medium"
+                className="w-full rounded-md bg-orange-500 hover:bg-orange-600 transition-colors py-2.5 text-sm font-semibold"
               >
                 Done
               </button>
-              <Link
-                to="/"
-                className="flex-1 rounded-md bg-orange-500 hover:bg-orange-600 transition-colors py-2 text-sm font-semibold grid place-items-center"
-              >
-                View in dashboard
-              </Link>
             </div>
           </div>
         </div>

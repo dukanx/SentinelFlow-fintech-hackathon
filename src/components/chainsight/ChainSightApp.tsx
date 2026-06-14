@@ -1,13 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { ShieldCheck, Inbox, Ban, CheckCircle2, ListTree, ChevronUp, Wallet } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { ShieldCheck, Inbox, Ban, CheckCircle2, ListTree, ChevronUp } from "lucide-react";
 import type { Deposit, KanbanColumn, Verdict } from "@/lib/mock-data";
-import { loadRiskDeposits, useDeposits } from "@/lib/deposit-store";
+import {
+  depositStore,
+  loadRiskDeposits,
+  useDeposits,
+  useDepositAnnouncements,
+} from "@/lib/deposit-store";
 import { CURRENT_ANALYST } from "@/lib/config";
+import { newEddRequest, type EddState } from "@/lib/edd";
+import { Toaster } from "@/components/ui/sonner";
 import { StatCards } from "./StatCards";
 import { NeedsReviewBoard } from "./NeedsReviewBoard";
 import { DepositTable } from "./DepositTable";
 import { CaseDetail, defaultNoteFor } from "./CaseDetail";
+import { NewDepositPopup } from "./NewDepositPopup";
 
 type NavId = "review" | "blocked" | "cleared" | "all";
 
@@ -22,12 +29,17 @@ export function ChainSightApp() {
   const [nav, setNav] = useState<NavId>("review");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const seedDeposits = useDeposits();
+  // Freshly screened deposits (e.g. a wallet-initiated send) waiting to be announced.
+  const announcements = useDepositAnnouncements();
+  const announced = announcements[0] ?? null;
 
   // Verdict overrides per case (after Block/Accept)
   const [overrides, setOverrides] = useState<Record<string, Verdict>>({});
   // Kanban columns for REVIEW cases (only meaningful if verdict still REVIEW)
   const [columns, setColumns] = useState<Record<string, KanbanColumn>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
+  // Enhanced-due-diligence record per case (RFI sent, deadline, docs received)
+  const [edd, setEdd] = useState<Record<string, EddState>>({});
 
   useEffect(() => {
     void loadRiskDeposits();
@@ -39,23 +51,29 @@ export function ChainSightApp() {
       overrides[d.id] ? { ...d, verdict: overrides[d.id] } : d,
     );
     // lazily seed columns/notes for any new ids
+    const reviewIds = seedDeposits.filter((d) => d.verdict === "REVIEW").map((d) => d.id);
     for (const d of seedDeposits) {
-      if (d.verdict === "REVIEW" && d.initialColumn && !columns[d.id]) {
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        columns[d.id] = d.initialColumn;
+      if (d.verdict === "REVIEW" && !columns[d.id]) {
+        const rank = reviewIds.indexOf(d.id);
+        // First three flagged cases seed "Pending"; the rest seed "Awaiting documents".
+        columns[d.id] = rank >= 0 && rank < 3 ? "pending" : "awaiting";
+      }
+      // Cases seeded directly into "Awaiting" already have an RFI out — seed its EDD record.
+      if (columns[d.id] === "awaiting" && !edd[d.id]) {
+        edd[d.id] = newEddRequest();
       }
       if (notes[d.id] === undefined) {
         notes[d.id] = defaultNoteFor(d);
       }
     }
     return next;
-  }, [seedDeposits, overrides, columns, notes]);
+  }, [seedDeposits, overrides, columns, notes, edd]);
 
   const reviewCases = allDeposits.filter((d) => d.verdict === "REVIEW");
   const blockedDeposits = allDeposits.filter((d) => d.verdict === "BLOCKED");
   const clearedDeposits = allDeposits.filter((d) => d.verdict === "CLEARED");
 
-  const selected = selectedId ? allDeposits.find((d) => d.id === selectedId) ?? null : null;
+  const selected = selectedId ? (allDeposits.find((d) => d.id === selectedId) ?? null) : null;
 
   function columnOf(id: string): KanbanColumn {
     return columns[id] ?? "pending";
@@ -66,9 +84,16 @@ export function ChainSightApp() {
   }
 
   function handleRequestEdd(d: Deposit) {
+    // Send the RFI: stamp the request + 14-day deadline, then move to awaiting.
+    setEdd((e) => ({ ...e, [d.id]: e[d.id] ?? newEddRequest() }));
     moveCard(d.id, "awaiting");
   }
   function handleMarkDocs(d: Deposit) {
+    // Documents arrived: stamp receivedAt so the panel can show the upload time.
+    setEdd((e) => {
+      const base = e[d.id] ?? newEddRequest();
+      return { ...e, [d.id]: { ...base, receivedAt: new Date().toISOString() } };
+    });
     moveCard(d.id, "ready");
   }
   function handleBlock(d: Deposit) {
@@ -112,9 +137,9 @@ export function ChainSightApp() {
               <button
                 key={item.id}
                 onClick={() => setNav(item.id)}
-                className={`flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+                className={`flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm transition-all ${
                   active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                     : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
                 }`}
               >
@@ -122,7 +147,13 @@ export function ChainSightApp() {
                   <Icon className="size-4" />
                   {item.label}
                 </span>
-                <span className="font-mono text-xs text-sidebar-foreground/60">
+                <span
+                  className={`font-mono text-xs rounded-full px-1.5 ${
+                    active
+                      ? "bg-sidebar/70 text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/60"
+                  }`}
+                >
                   {count}
                 </span>
               </button>
@@ -130,17 +161,19 @@ export function ChainSightApp() {
           })}
         </nav>
 
-        <div className="px-2 pt-2">
-          <Link
-            to="/wallet"
-            className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground transition-colors"
-          >
-            <Wallet className="size-4" />
-            Demo wallet
-            <span className="ml-auto text-[10px] uppercase tracking-wider opacity-60">
-              external
-            </span>
-          </Link>
+        <div className="px-3 pb-1">
+          <div className="rounded-lg border bg-sidebar-accent/40 px-3 py-3">
+            <div className="flex items-center gap-2 text-xs font-medium">
+              <span className="relative flex size-2">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-verdict-cleared opacity-60 animate-ping" />
+                <span className="relative inline-flex size-2 rounded-full bg-verdict-cleared" />
+              </span>
+              Live screening
+            </div>
+            <div className="mt-1.5 text-[11px] text-sidebar-foreground/60 leading-relaxed">
+              Deposits screened against the on-chain risk graph in real time.
+            </div>
+          </div>
         </div>
 
         <div className="mt-auto border-t border-sidebar-border">
@@ -173,7 +206,10 @@ export function ChainSightApp() {
 
       {/* Main */}
       <main className="flex-1 min-w-0">
-        <header className="border-b px-6 py-5 flex items-center justify-between">
+        <div className="px-6 py-6 space-y-5">
+          <StatCards deposits={allDeposits} />
+
+          {/* Section title — sits below the totals */}
           <div>
             <h1 className="text-xl font-medium tracking-tight">
               {NAV.find((n) => n.id === nav)?.label}
@@ -188,13 +224,6 @@ export function ChainSightApp() {
                     : "All incoming deposits screened in the last 24 hours."}
             </p>
           </div>
-          <div className="text-xs text-muted-foreground font-mono">
-            policy v2.4 · trace depth 6
-          </div>
-        </header>
-
-        <div className="px-6 py-6 space-y-6">
-          <StatCards deposits={allDeposits} />
 
           {nav === "review" && (
             <NeedsReviewBoard
@@ -232,10 +261,9 @@ export function ChainSightApp() {
         <CaseDetail
           deposit={selected}
           column={columns[selected.id]}
+          edd={edd[selected.id]}
           auditNote={notes[selected.id] ?? ""}
-          onAuditNoteChange={(n) =>
-            setNotes((s) => ({ ...s, [selected.id]: n }))
-          }
+          onAuditNoteChange={(n) => setNotes((s) => ({ ...s, [selected.id]: n }))}
           onClose={() => setSelectedId(null)}
           onBlock={handleBlock}
           onAccept={handleAccept}
@@ -243,6 +271,20 @@ export function ChainSightApp() {
           onMarkDocs={handleMarkDocs}
         />
       )}
+
+      {announced && !selected && (
+        <NewDepositPopup
+          deposit={announced}
+          onReview={() => {
+            setNav("review");
+            setSelectedId(announced.id);
+            depositStore.dismissAnnouncement(announced.id);
+          }}
+          onDismiss={() => depositStore.dismissAnnouncement(announced.id)}
+        />
+      )}
+
+      <Toaster position="top-right" richColors closeButton />
     </div>
   );
 }

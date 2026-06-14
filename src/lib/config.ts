@@ -1,7 +1,8 @@
 export const REVIEW_THRESHOLD = 35;
 export const BLOCK_THRESHOLD = 85;
 
-export const EXCHANGE_HOT_WALLET = "0xe1c7df02b8a4566d801a6e96217554a0e310ec88";
+// Must stay in sync with EXCHANGE_HOT_WALLET in scripts/solana_risk_runner.py.
+export const EXCHANGE_HOT_WALLET = "z9AL5864t9S8MfkszrWaQ6QGEA9J9EhH9QFf5m9EVpTk";
 export const EXCHANGE_NAME = "ChainSight Exchange Hot Wallet";
 
 export const KNOWN_LABELS = {

@@ -1,18 +1,49 @@
-import { X, Ban, FileText, CheckCircle2, BookOpen } from "lucide-react";
+import {
+  X,
+  Ban,
+  FileText,
+  CheckCircle2,
+  BookOpen,
+  Waypoints,
+  Shuffle,
+  Coins,
+  Fingerprint,
+  ShieldAlert,
+  ShieldCheck,
+  Scale,
+  Info,
+  type LucideIcon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import type { Deposit, KanbanColumn } from "@/lib/mock-data";
 import { TransactionFlow } from "./TransactionFlow";
 import { SignalBreakdown } from "./SignalBreakdown";
 import { RiskBar } from "./RiskBar";
 import { VerdictBadge } from "./VerdictBadge";
 import { AnalystAvatar } from "./AnalystAvatar";
-import { truncateAddress, formatDateTime, nowHHMM } from "@/lib/format";
+import { ActionDialog, type ActionKind } from "./ActionDialog";
+import { CopyAddress } from "./CopyAddress";
+import { DocumentsPanel } from "./DocumentsPanel";
+import { truncateAddress, formatDateTime, formatRelative, nowHHMM } from "@/lib/format";
 import { EXCHANGE_HOT_WALLET, EXCHANGE_NAME } from "@/lib/config";
-import { buildDefaultAuditNote } from "@/lib/verdict";
+import type { EddState } from "@/lib/edd";
+
+const FACTOR_ICON: Record<string, LucideIcon> = {
+  match: Ban,
+  hops: Waypoints,
+  mixer: Shuffle,
+  exposed: Coins,
+  identity: Fingerprint,
+  quarantine: ShieldAlert,
+  clean: ShieldCheck,
+  policy: Scale,
+};
 
 interface Props {
   deposit: Deposit;
   column?: KanbanColumn;
+  edd?: EddState;
   auditNote: string;
   onAuditNoteChange: (note: string) => void;
   onClose: () => void;
@@ -25,6 +56,7 @@ interface Props {
 export function CaseDetail({
   deposit,
   column,
+  edd,
   auditNote,
   onAuditNoteChange,
   onClose,
@@ -34,6 +66,7 @@ export function CaseDetail({
   onMarkDocs,
 }: Props) {
   const [note, setNote] = useState(auditNote);
+  const [pending, setPending] = useState<ActionKind | null>(null);
 
   useEffect(() => setNote(auditNote), [auditNote, deposit.id]);
 
@@ -47,9 +80,36 @@ export function CaseDetail({
     onAuditNoteChange(next);
   }
 
+  const shortSender = truncateAddress(deposit.sender, 6, 6);
+
+  function confirmAction() {
+    if (!pending) return;
+    if (pending === "block") {
+      appendAction("Block deposit");
+      onBlock(deposit);
+      toast.error("Deposit blocked", {
+        description: `${deposit.id.toUpperCase()} · ${shortSender}`,
+      });
+    } else if (pending === "accept") {
+      appendAction("Accept deposit");
+      onAccept(deposit);
+      toast.success("Deposit accepted", {
+        description: `${deposit.id.toUpperCase()} · ${shortSender}`,
+      });
+    } else if (pending === "request") {
+      appendAction("Request EDD");
+      onRequestEdd(deposit);
+      toast.info("EDD requested", {
+        description: `${deposit.id.toUpperCase()} moved to Awaiting documents`,
+      });
+    }
+    setPending(null);
+    onClose();
+  }
+
   return (
-    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm overflow-y-auto">
-      <div className="max-w-7xl mx-auto px-6 py-6">
+    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">
+      <div className="max-w-7xl mx-auto px-6 py-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -82,19 +142,34 @@ export function CaseDetail({
 
         {/* Deposit summary — separate cards */}
         <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Field label="Sender" value={truncateAddress(deposit.sender, 8, 6)} mono />
+          <Field
+            label="Sender"
+            value={<CopyAddress address={deposit.sender} className="text-sm" />}
+          />
           <Field
             label="Amount"
             value={
               <span>
-                {deposit.amount}{" "}
-                <span className="text-muted-foreground">{deposit.token}</span>
+                {deposit.amount} <span className="text-muted-foreground">{deposit.token}</span>
               </span>
             }
             mono
           />
-          <Field label="Destination" value={EXCHANGE_NAME} sub={EXCHANGE_HOT_WALLET} />
-          <Field label="Received" value={formatDateTime(deposit.receivedAt)} />
+          <Field
+            label="Destination"
+            value={EXCHANGE_NAME}
+            valueSub={
+              <CopyAddress
+                address={EXCHANGE_HOT_WALLET}
+                className="text-[11px] text-muted-foreground"
+              />
+            }
+          />
+          <Field
+            label="Received"
+            value={formatRelative(deposit.receivedAt)}
+            sub={formatDateTime(deposit.receivedAt)}
+          />
         </div>
 
         {/* Risk score + bar */}
@@ -125,19 +200,31 @@ export function CaseDetail({
                 <BookOpen className="size-4 text-[oklch(0.55_0.18_55)]" />
                 <h2 className="text-sm font-medium">Why this verdict</h2>
               </div>
-              <div className="space-y-2.5 text-sm leading-relaxed text-foreground/85">
-                {deposit.reasons.map((r, i) => (
-                  <p key={i}>{r}</p>
-                ))}
-              </div>
+              <ul className="space-y-2.5 text-sm leading-relaxed text-foreground/85">
+                {deposit.factors.map((f, i) => {
+                  const Icon = FACTOR_ICON[f.type] ?? Info;
+                  return (
+                    <li key={i} className="flex gap-2.5">
+                      <Icon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
+                      <span>{f.text}</span>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           </div>
 
           <div>
             <SignalBreakdown deposit={deposit} />
           </div>
-
         </div>
+
+        {/* EDD document collection — only while a case is in the EDD flow */}
+        {isReview && (column === "awaiting" || column === "ready") && (
+          <div className="mt-4">
+            <DocumentsPanel deposit={deposit} column={column} edd={edd} />
+          </div>
+        )}
 
         {/* Audit note + actions */}
         <div className="mt-4 rounded-lg border bg-surface p-5">
@@ -174,41 +261,35 @@ export function CaseDetail({
                   onClick={() => {
                     appendAction("Documents received");
                     onMarkDocs(deposit);
+                    toast.success("Documents received", {
+                      description: `${deposit.id.toUpperCase()} ready for re-review`,
+                    });
                   }}
-                  className="inline-flex items-center gap-2 rounded-md border bg-surface-2 px-3.5 py-2 text-sm hover:bg-accent transition-colors"
+                  className="inline-flex items-center gap-2 rounded-md border bg-surface-2 px-3.5 py-2 text-sm transition-all hover:bg-accent hover:-translate-y-0.5"
                 >
                   <FileText className="size-4" />
                   Mark documents received
                 </button>
               )}
-              {column !== "awaiting" && (
+              {(column === undefined || column === "pending") && (
                 <button
-                  onClick={() => {
-                    appendAction("Request EDD");
-                    onRequestEdd(deposit);
-                  }}
-                  className="inline-flex items-center gap-2 rounded-md border bg-surface-2 px-3.5 py-2 text-sm hover:bg-accent transition-colors"
+                  onClick={() => setPending("request")}
+                  className="inline-flex items-center gap-2 rounded-md border bg-surface-2 px-3.5 py-2 text-sm transition-all hover:bg-accent hover:-translate-y-0.5"
                 >
                   <FileText className="size-4" />
                   Request EDD
                 </button>
               )}
               <button
-                onClick={() => {
-                  appendAction("Block deposit");
-                  onBlock(deposit);
-                }}
-                className="inline-flex items-center gap-2 rounded-md border border-verdict-blocked/40 bg-verdict-blocked-soft/60 text-verdict-blocked px-3.5 py-2 text-sm hover:bg-verdict-blocked-soft transition-colors"
+                onClick={() => setPending("block")}
+                className="inline-flex items-center gap-2 rounded-md border border-verdict-blocked/40 bg-verdict-blocked-soft/60 text-verdict-blocked px-3.5 py-2 text-sm font-medium transition-all hover:bg-verdict-blocked-soft hover:-translate-y-0.5"
               >
                 <Ban className="size-4" />
                 Block deposit
               </button>
               <button
-                onClick={() => {
-                  appendAction("Accept deposit");
-                  onAccept(deposit);
-                }}
-                className="inline-flex items-center gap-2 rounded-md border border-verdict-cleared/40 bg-verdict-cleared-soft/60 text-verdict-cleared px-3.5 py-2 text-sm hover:bg-verdict-cleared-soft transition-colors"
+                onClick={() => setPending("accept")}
+                className="inline-flex items-center gap-2 rounded-md border border-verdict-cleared/40 bg-verdict-cleared-soft/60 text-verdict-cleared px-3.5 py-2 text-sm font-medium transition-all hover:bg-verdict-cleared-soft hover:-translate-y-0.5"
               >
                 <CheckCircle2 className="size-4" />
                 Accept deposit
@@ -225,6 +306,15 @@ export function CaseDetail({
 
         <div className="h-10" />
       </div>
+
+      {pending && (
+        <ActionDialog
+          kind={pending}
+          deposit={deposit}
+          onConfirm={confirmAction}
+          onClose={() => setPending(null)}
+        />
+      )}
     </div>
   );
 }
@@ -233,23 +323,31 @@ function Field({
   label,
   value,
   sub,
+  valueSub,
   mono,
 }: {
   label: string;
   value: React.ReactNode;
   sub?: string;
+  valueSub?: React.ReactNode;
   mono?: boolean;
 }) {
   return (
     <div className="rounded-lg border bg-surface p-4 hover:border-foreground/20 transition-colors">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</div>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+        {label}
+      </div>
       <div className={`mt-1.5 text-sm ${mono ? "font-mono" : ""}`}>{value}</div>
-      {sub && <div className="text-[11px] font-mono text-muted-foreground mt-1 truncate">{sub}</div>}
+      {valueSub && <div className="mt-1">{valueSub}</div>}
+      {sub && (
+        <div className="text-[11px] font-mono text-muted-foreground mt-1 truncate">{sub}</div>
+      )}
     </div>
   );
 }
 
-// Helper exported so the parent can compute initial note for a case
+// The backend pre-fills the audit note from the same data as the risk factors,
+// so the note and "Why this verdict" always agree.
 export function defaultNoteFor(d: Deposit) {
-  return buildDefaultAuditNote(d);
+  return d.auditNote;
 }

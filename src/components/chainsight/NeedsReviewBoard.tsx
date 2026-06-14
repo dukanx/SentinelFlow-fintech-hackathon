@@ -1,3 +1,4 @@
+import { Inbox, Hourglass, FileCheck, type LucideIcon } from "lucide-react";
 import type { Deposit, KanbanColumn } from "@/lib/mock-data";
 import { KanbanCard } from "./KanbanCard";
 
@@ -13,12 +14,8 @@ interface ColMeta {
   id: KanbanColumn;
   title: string;
   subtitle: string;
-  /* tailwind color classes built from CSS tokens */
-  accentBar: string;
-  headerBg: string;
-  countText: string;
-  countBg: string;
-  dot: string;
+  icon: LucideIcon;
+  iconWrap: string;
 }
 
 const COLUMNS: ColMeta[] = [
@@ -26,41 +23,26 @@ const COLUMNS: ColMeta[] = [
     id: "pending",
     title: "Pending review",
     subtitle: "Flagged — awaiting analyst",
-    accentBar: "bg-col-pending",
-    headerBg: "bg-col-pending-soft/60",
-    countText: "text-col-pending",
-    countBg: "bg-col-pending/15",
-    dot: "bg-col-pending",
+    icon: Inbox,
+    iconWrap: "bg-col-pending/12 text-col-pending",
   },
   {
     id: "awaiting",
     title: "Awaiting documents",
     subtitle: "EDD requested",
-    accentBar: "bg-col-awaiting",
-    headerBg: "bg-col-awaiting-soft/60",
-    countText: "text-col-awaiting",
-    countBg: "bg-col-awaiting/15",
-    dot: "bg-col-awaiting",
+    icon: Hourglass,
+    iconWrap: "bg-col-awaiting/12 text-col-awaiting",
   },
   {
     id: "ready",
     title: "Ready for re-review",
     subtitle: "Documents received",
-    accentBar: "bg-col-ready",
-    headerBg: "bg-col-ready-soft/60",
-    countText: "text-col-ready",
-    countBg: "bg-col-ready/15",
-    dot: "bg-col-ready",
+    icon: FileCheck,
+    iconWrap: "bg-col-ready/12 text-col-ready",
   },
 ];
 
-export function NeedsReviewBoard({
-  cases,
-  columnOf,
-  onOpen,
-  onRequestEdd,
-  onMarkDocs,
-}: Props) {
+export function NeedsReviewBoard({ cases, columnOf, onOpen, onRequestEdd, onMarkDocs }: Props) {
   const grouped: Record<KanbanColumn, Deposit[]> = {
     pending: [],
     awaiting: [],
@@ -70,59 +52,63 @@ export function NeedsReviewBoard({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {COLUMNS.map((col) => (
-        <div
-          key={col.id}
-          className="flex flex-col rounded-xl border bg-surface overflow-hidden"
-        >
-          <div className={`h-1 w-full ${col.accentBar}`} />
+      {COLUMNS.map((col, colIndex) => {
+        const Icon = col.icon;
+        const items = grouped[col.id];
+        return (
           <div
-            className={`flex items-center justify-between px-4 py-3 border-b ${col.headerBg}`}
+            key={col.id}
+            style={{ animationDelay: `${colIndex * 80}ms` }}
+            className="animate-float-in flex flex-col rounded-xl border bg-surface overflow-hidden shadow-sm"
           >
-            <div className="flex items-center gap-2.5">
-              <span className={`inline-block size-2 rounded-full ${col.dot}`} />
-              <div>
-                <div className="text-sm font-semibold">{col.title}</div>
-                <div className="text-xs text-muted-foreground">{col.subtitle}</div>
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <div className="flex items-center gap-2.5">
+                <span className={`grid place-items-center size-8 rounded-lg ${col.iconWrap}`}>
+                  <Icon className="size-4" />
+                </span>
+                <div>
+                  <div className="text-sm font-semibold">{col.title}</div>
+                  <div className="text-xs text-muted-foreground">{col.subtitle}</div>
+                </div>
               </div>
+              <span className="font-mono text-xs font-medium rounded-full px-2 py-0.5 bg-surface-2 text-muted-foreground">
+                {items.length}
+              </span>
             </div>
-            <span
-              className={`font-mono text-xs font-semibold rounded-full px-2 py-0.5 ${col.countBg} ${col.countText}`}
-            >
-              {grouped[col.id].length}
-            </span>
+            <div className="flex flex-col gap-3 p-3 min-h-[220px] bg-surface-2/30">
+              {items.length === 0 && (
+                <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground/60">
+                  <Icon className="size-7 opacity-50" />
+                  <span className="text-xs">No cases</span>
+                </div>
+              )}
+              {items.map((d, i) => (
+                <KanbanCard
+                  key={d.id}
+                  deposit={d}
+                  index={i}
+                  column={col.id}
+                  onOpen={onOpen}
+                  onAdvance={
+                    col.id === "awaiting"
+                      ? onMarkDocs
+                      : col.id === "pending"
+                        ? onRequestEdd
+                        : undefined
+                  }
+                  advanceLabel={
+                    col.id === "awaiting"
+                      ? "Mark received"
+                      : col.id === "pending"
+                        ? "Request EDD"
+                        : undefined
+                  }
+                />
+              ))}
+            </div>
           </div>
-          <div className="flex flex-col gap-3 p-3 min-h-[200px] bg-surface-2/40">
-            {grouped[col.id].length === 0 && (
-              <div className="text-xs text-muted-foreground/70 text-center py-8">
-                No cases
-              </div>
-            )}
-            {grouped[col.id].map((d) => (
-              <KanbanCard
-                key={d.id}
-                deposit={d}
-                column={col.id}
-                onOpen={onOpen}
-                onAdvance={
-                  col.id === "awaiting"
-                    ? onMarkDocs
-                    : col.id === "pending"
-                      ? onRequestEdd
-                      : undefined
-                }
-                advanceLabel={
-                  col.id === "awaiting"
-                    ? "Mark documents received"
-                    : col.id === "pending"
-                      ? "Request EDD"
-                      : undefined
-                }
-              />
-            ))}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

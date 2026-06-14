@@ -23,7 +23,7 @@ class ScreenTransferRequest(BaseModel):
     sender_wallet: str
     recipient_wallet: str
     amount: float
-    token: str = "ETH"
+    token: str = "SOL"
 
 
 @asynccontextmanager

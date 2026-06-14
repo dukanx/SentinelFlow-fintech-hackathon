@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import { Ban, Wallet, Shuffle, Coins, Building2, Network } from "lucide-react";
 import { truncateAddress } from "@/lib/format";
+import { CopyAddress } from "./CopyAddress";
 
 interface Props {
   nodes: Node[];
@@ -78,9 +79,7 @@ export function TransactionFlow({ nodes, edges }: Props) {
     const cols = xs.length;
     // Group nodes per column, sort by y (top to bottom)
     const grouped = xs.map((x) =>
-      nodes
-        .filter((n) => n.position.x === x)
-        .sort((a, b) => a.position.y - b.position.y),
+      nodes.filter((n) => n.position.x === x).sort((a, b) => a.position.y - b.position.y),
     );
     const maxRows = Math.max(...grouped.map((g) => g.length));
 
@@ -99,10 +98,31 @@ export function TransactionFlow({ nodes, edges }: Props) {
       });
     });
 
+    // Center single-node columns on the average center of their inflow sources, so a
+    // mixer fed by several wallets sits in the middle of them rather than beside one.
+    // Processed left → right so downstream nodes align to already-centered upstream ones.
+    const sourcesByNode = new Map<string, string[]>();
+    edges.forEach((e) => {
+      const list = sourcesByNode.get(e.target) ?? [];
+      list.push(e.source);
+      sourcesByNode.set(e.target, list);
+    });
+    grouped.forEach((group, ci) => {
+      if (ci === 0 || group.length !== 1) return;
+      const n = group[0];
+      const srcCys = (sourcesByNode.get(n.id) ?? [])
+        .map((s) => positioned.get(s)?.cy)
+        .filter((v): v is number => v != null);
+      if (srcCys.length === 0) return;
+      const avgCy = srcCys.reduce((a, b) => a + b, 0) / srcCys.length;
+      const cur = positioned.get(n.id)!;
+      positioned.set(n.id, { ...cur, y: avgCy - NODE_H / 2, cy: avgCy });
+    });
+
     const width = PAD_X * 2 + cols * NODE_W + (cols - 1) * COL_GAP;
     const height = PAD_Y * 2 + maxRows * NODE_H + (maxRows - 1) * ROW_GAP;
     return { positioned, width, height, colIndex };
-  }, [nodes]);
+  }, [nodes, edges]);
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
@@ -126,9 +146,15 @@ export function TransactionFlow({ nodes, edges }: Props) {
       {/* Inline animation keyframes */}
       <style>{`
         @keyframes dash-flow {
-          to { stroke-dashoffset: -20; }
+          to { stroke-dashoffset: -14; }
         }
-        .flow-edge-anim { animation: dash-flow 1.2s linear infinite; }
+        .flow-edge-anim {
+          animation: dash-flow 0.9s linear infinite;
+          will-change: stroke-dashoffset;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .flow-edge-anim { animation: none; }
+        }
       `}</style>
 
       {/* Header */}
@@ -155,13 +181,37 @@ export function TransactionFlow({ nodes, edges }: Props) {
             height={layout.height}
           >
             <defs>
-              <marker id="arrow-danger" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <marker
+                id="arrow-danger"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
                 <path d="M0,0 L10,5 L0,10 z" fill="oklch(0.58 0.22 25)" />
               </marker>
-              <marker id="arrow-clean" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <marker
+                id="arrow-clean"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
                 <path d="M0,0 L10,5 L0,10 z" fill="oklch(0.75 0.01 250)" />
               </marker>
-              <marker id="arrow-faded" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <marker
+                id="arrow-faded"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
                 <path d="M0,0 L10,5 L0,10 z" fill="oklch(0.58 0.22 25 / 0.45)" />
               </marker>
             </defs>
@@ -207,7 +257,6 @@ export function TransactionFlow({ nodes, edges }: Props) {
             })}
           </svg>
 
-
           {/* Edge labels */}
           {edges.map((e) => {
             const from = layout.positioned.get(e.source);
@@ -243,8 +292,6 @@ export function TransactionFlow({ nodes, edges }: Props) {
             const Icon = s.Icon;
             const isHovered = hoveredId === n.id;
             const dimmed = hoveredId && !connectedNodes.has(n.id);
-            const incoming = edges.filter((e) => e.target === n.id);
-            const outgoing = edges.filter((e) => e.source === n.id);
             return (
               <div
                 key={n.id}
@@ -264,7 +311,9 @@ export function TransactionFlow({ nodes, edges }: Props) {
                     <Icon className="size-3.5" strokeWidth={2.2} />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className={`text-[9px] font-semibold tracking-wider ${s.chip} rounded px-1 py-px inline-block leading-tight`}>
+                    <div
+                      className={`text-[9px] font-semibold tracking-wider ${s.chip} rounded px-1 py-px inline-block leading-tight`}
+                    >
                       {s.label}
                     </div>
                     <div className="text-[12px] font-medium truncate leading-tight mt-0.5">
@@ -278,36 +327,25 @@ export function TransactionFlow({ nodes, edges }: Props) {
                   </div>
                 </div>
 
-                {/* Hover detail card — overlays node, minimal info */}
-                {isHovered && (() => {
-                  const role =
-                    kind === "sender"
-                      ? "Origin deposit"
-                      : kind === "exchange"
-                        ? "Destination"
-                        : kind === "sanctioned"
-                          ? "Sanctioned entity"
-                          : kind === "mixer"
-                            ? "Mixer"
-                            : incoming.length > 0 && outgoing.length > 0
-                              ? "Pass-through"
-                              : "Wallet";
-                  return (
-                    <div
-                      className="absolute inset-0 z-50 rounded-lg border-2 border-foreground/40 bg-popover shadow-2xl p-2.5 flex flex-col justify-center"
-                      onMouseEnter={() => setHoveredId(n.id)}
-                    >
-                      <div className={`text-[9px] font-semibold tracking-wider ${s.chip} rounded px-1 py-px inline-block leading-tight self-start`}>
-                        {role.toUpperCase()}
-                      </div>
-                      {data.address && (
-                        <div className="mt-1 text-[10px] font-mono break-all leading-tight">
-                          {data.address}
+                {/* Hover detail popover — full, copyable address only */}
+                {isHovered &&
+                  data.address &&
+                  (() => {
+                    // Flip the popover to whichever side has more vertical room.
+                    const showAbove = pos.y > layout.height - (pos.y + NODE_H);
+                    return (
+                      <div
+                        className="absolute z-50 left-1/2 -translate-x-1/2 w-[252px] rounded-lg border-2 border-foreground/30 bg-popover shadow-2xl px-3 py-2.5 cursor-default"
+                        style={showAbove ? { bottom: NODE_H + 10 } : { top: NODE_H + 10 }}
+                        onMouseEnter={() => setHoveredId(n.id)}
+                      >
+                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium mb-1">
+                          Wallet address
                         </div>
-                      )}
-                    </div>
-                  );
-                })()}
+                        <CopyAddress address={data.address} className="text-[11px] leading-snug" />
+                      </div>
+                    );
+                  })()}
               </div>
             );
           })}
@@ -342,15 +380,7 @@ export function TransactionFlow({ nodes, edges }: Props) {
   );
 }
 
-function LegendDot({
-  color,
-  label,
-  square,
-}: {
-  color: string;
-  label: string;
-  square?: boolean;
-}) {
+function LegendDot({ color, label, square }: { color: string; label: string; square?: boolean }) {
   return (
     <span className="flex items-center gap-1.5">
       <span

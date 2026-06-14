@@ -19,7 +19,8 @@ from typing import Any
 import networkx as nx
 
 
-HEX_ALPHABET = "0123456789abcdef"
+# Solana addresses and signatures are base58-encoded (Bitcoin alphabet: no 0, O, I, l).
+BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 NODE_COUNT = 5_000
 MIN_EDGE_COUNT = 15_001
 MAX_REVERSE_HOPS = 4
@@ -31,60 +32,61 @@ IDENTITY_REVIEW_THRESHOLD = 0.72
 CANDIDATE_BUCKET_LIMIT = 24
 MAX_CANDIDATE_PAIRS = 80_000
 
-# ── Realistic Ethereum entities ──────────────────────────────────────────────
+# ── Solana entities (base58 addresses) ───────────────────────────────────────
 # OFAC-sanctioned / blocked sources (rendered red, auto-rejected on a direct match).
-LAZARUS_EXPLOIT = "0x098b716b8aaf21512996dc57eb0615e2383e2f96"   # Lazarus Group — Ronin bridge exploit
-LAZARUS_CASHOUT = "0xa0e1c89ef1a489c9c7de96311ed5ce5d32c20e4b"   # Lazarus Group — cashout wallet
-SANCTIONED_MIXER = "0x8589427373d6d84e98730d7795d8f6f8731fda16"  # Sanctioned mixer (dusting source)
+LAZARUS_EXPLOIT = "VUjmGL66w6rsjKdvBmQ8q558Kut3cfE4JeG6dCeJYNRc"   # Lazarus Group — bridge exploit
+LAZARUS_CASHOUT = "Swf8EfykLf9gTfioYikpCbLzzxJx959GRdL2ahe3c89C"   # Lazarus Group — cashout wallet
+SANCTIONED_MIXER = "8s4FBoBZy1pFSen8wfnQcyqjyLPKpmdhFycEGsrjze8x"  # Sanctioned mixer (dusting source)
 
 # Mixer hop (rendered purple; sits between a blocked source and the sender).
-TORNADO_CASH = "0x722122df12d4e14e13ac3b6895a86e84145b6967"      # Tornado Cash router
+TORNADO_CASH = "jVurrm9Forgh3ifZPDLWBYRiXUyXfFzxpVADu6uX6pb1"      # Tornado Cash mixer
 
-# Other legitimate wallets co-mixing through Tornado Cash, shown as extra (valid) inflows.
+# Other legitimate wallets co-mixing through the mixer, shown as extra (valid) inflows.
 TORNADO_DEPOSITORS = [
-    "0x3f5a8d2c91b7e4a6f0c1d2e3b4a5c6d7e8f90a1b",
-    "0x9c2e7b4a1d8f63059a2b3c4d5e6f70819a2b3c4d",
+    "nSjNA25mBLXMTgZfs4Q171ggpUoeQP5fusG4cD3SRexD",
+    "tvRwVUfxaMLoMyy7voaBLjwTHNnAxAphLE9zHvxb5gs2",
 ]
 
 # Legitimate, labeled hubs.
-UNISWAP_ROUTER = "0x66a9893cc07d91d95644aedd05d03f95e1dba8af"
-BINANCE_HOT = "0x28c6c06298d514db089934071355e5743bf21d60"
-COINBASE_HOT = "0x71660c4005ba85c37ccec55d0c4493e66fe775d3"
+UNISWAP_ROUTER = "kSU5tjpBxgh3EAmzMfJsvzThZyFwqnqWAbnCKUB5EvaH"  # Jupiter aggregator
+BINANCE_HOT = "aKAVUGqDX5WtrLopkAZiXxPopUJYqZChZP4T22ZTkuLn"
+COINBASE_HOT = "kFDXi8QAHf6T77JRgzMALEE9kC2UybrogPy3gXFT3pYW"
 
 # Our own off-ramp / exchange hot wallet (the deposit destination in the graph).
-EXCHANGE_HOT_WALLET = "0xe1c7df02b8a4566d801a6e96217554a0e310ec88"
+# NOTE: must stay in sync with EXCHANGE_HOT_WALLET in src/lib/config.ts.
+EXCHANGE_HOT_WALLET = "z9AL5864t9S8MfkszrWaQ6QGEA9J9EhH9QFf5m9EVpTk"
 
-INTERMEDIARY_HOP = "0x4d2a8c91f7b3e5a6d8c0b1e2f3a4b5c6d7e8f9a0"
+INTERMEDIARY_HOP = "E4VCTL8SHw62WEiu3JfSumbJ745cnoXpnPr51bQNY3tB"
 
-TEST_WALLET_CLEAN = "0x2c8b9a1d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a80"
+TEST_WALLET_CLEAN = "G1yGSUm2pEksdQHpeXTcfQytcmnVmfRBU86itkaZygui"
 TEST_WALLET_DIRECT_MATCH = LAZARUS_CASHOUT
-TEST_WALLET_INDIRECT_TAINT = "0x3a8b91c4d2e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9"
-TEST_WALLET_IDENTITY_LINKED = "0x7c4e9a2b1d5f3e6a8b9c0d1e2f3a4b5c6d7e8f90"
-TEST_WALLET_POISONED = "0x5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f"
+TEST_WALLET_INDIRECT_TAINT = "9cbk2sgyQjTYb1mTDVTtSt3E4Z9YhWZVvjCFUV4tubUk"
+TEST_WALLET_IDENTITY_LINKED = "xE9PkWjkdohYysYkAZVw1ji6eTTuJTDcF6nGgeAjBGEx"
+TEST_WALLET_POISONED = "DpQ6wAz9eGRFQB4SCMjtd2rHDsudi98daGK5C8w6myzg"
 
 # More sanctioned / mixer entities so each case can have a distinct graph topology.
-GARANTEX = "0x7ec8c8d9a1b2c3d4e5f60718293a4b5c6d7e8f90"        # OFAC-sanctioned exchange
-SINBAD_MIXER = "0x5f3e6d2c1b0a99887766554433221100aabbccdd"    # Sinbad mixer (rendered purple, not auto-block)
+GARANTEX = "W831iyZdfvfWNQqXUVoA6bg4jR2uQwQ9KPLPPu5Hn7Jf"        # OFAC-sanctioned exchange
+SINBAD_MIXER = "jtpWodq3syzU1SwR3SMyzbEz7NnHjEXrpXsXYi1weWVM"    # Sinbad mixer (rendered purple, not auto-block)
 
 # Additional scenario wallets, each producing a different graph.
-WALLET_DIRECT_1HOP = "0x1a2b3c4d5e6f70819a0b1c2d3e4f5a6b7c8d9e0f"   # blocked source one hop away
-WALLET_TORNADO_2HOP = "0x2b3c4d5e6f70819a0b1c2d3e4f5a6b7c8d9e0f1a"  # Lazarus -> Tornado -> wallet
-WALLET_SINBAD_2HOP = "0x3c4d5e6f70819a0b1c2d3e4f5a6b7c8d9e0f1a2b"   # Garantex -> Sinbad -> wallet
-WALLET_PLAIN_CHAIN = "0x4d5e6f70819a0b1c2d3e4f5a6b7c8d9e0f1a2b3c"   # Garantex -> hop -> hop -> wallet
-CHAIN_HOP_1 = "0x5e6f70819a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d"
-CHAIN_HOP_2 = "0x6f70819a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e"
+WALLET_DIRECT_1HOP = "QXTTDhVfJ24NaZi3DMLMzRRyzd3nRfQfx4JJQLkNihqE"   # blocked source one hop away
+WALLET_TORNADO_2HOP = "tsFTUsLneHr3KFsZuiGiqA6Hk7qemRRqhTpnr9dJ3HX5"  # Lazarus -> Tornado -> wallet
+WALLET_SINBAD_2HOP = "zje4ubgNmqudTgbedY4EnbRDKdwuL9odEGjzFRfai5HY"   # Garantex -> Sinbad -> wallet
+WALLET_PLAIN_CHAIN = "JfQAEVNfi1rdhFtNwH2zWaxCmh68AdNmjddv76SHDF2t"   # Garantex -> hop -> hop -> wallet
+CHAIN_HOP_1 = "sZNbB7ha6gi2kTXmKYNHtm2vrhDovniAUSEKEbyorR6L"
+CHAIN_HOP_2 = "TPEMmyiU2273u3LLWb2wNVwDqrJMhR7DZ4WFagk7ueML"
 
 # Rare shared counterparties tying the identity-linked wallet to the tainted recipient.
 RARE_COUNTERPARTIES = [
-    "0xb1f0a266c3d8e57411a2c9d0e1f2a3b4c5d6e7f8",
-    "0xc2a1b3d4e5f60718293a4b5c6d7e8f9012a3b4c5",
-    "0xd3b2c4e5f6071829a3b4c5d6e7f8901123b4c5d6",
-    "0xe4c3d5f60718293a4b5c6d7e8f901234c5d6e7f8",
-    "0xf5d4e60718293a4b5c6d7e8f9012345d6e7f8091",
-    "0xa6e5f70819203b4c5d6e7f80123456e7f8091a2b",
-    "0xb7f6081920304c5d6e7f8091234567f8091a2b3c",
-    "0xc807192030415d6e7f80912345678091a2b3c4d5",
-    "0xd9081930415263e7f8091234567891a2b3c4d5e6",
+    "FzHKtQhoDL2vpKx9apt3iK9h6BnNLfoMqL31zCNBA8pc",
+    "N4jQ3BPPdwUuH6GEiPoFaEvZeeqCskZ55xxD8Meqm4gu",
+    "QRCZWw2n3EKHLUnVMfgu49bJtsXtFu2NM63TiPNFkS1R",
+    "yQQDiWHe5WoUeBwxJsEA6hxKP6cV7BiKa5TShfw38sMn",
+    "emocUaSxFLnNGDyGGHVSSoy5tVuoxih6FsFHVoeB5uWU",
+    "ztU7ePBC4ZhxPW9Qib5JXLpDmYwuSppdKMqPtYZwbHHb",
+    "gKktyv189EnxVbak6UYxxbNgrvSCxwY9tUbP3zCGD63h",
+    "aqmmCHUsYKkbTxpnr5LAB3QsYMiePuTNqHUPuzSBo96t",
+    "2boZANBdjVCRhZw9L4ySGCdDM4VkocBdtaD6T7SWEURw",
 ]
 
 BLOCKED_WALLETS = {LAZARUS_EXPLOIT, LAZARUS_CASHOUT, SANCTIONED_MIXER, GARANTEX}
@@ -173,15 +175,15 @@ class RiskContext:
     union_find: UnionFind
 
 
-def generate_eth_tx_hash() -> str:
-    """Generate an Ethereum-style 32-byte transaction hash."""
-    return "0x" + "".join(random.choice(HEX_ALPHABET) for _ in range(64))
+def generate_sol_signature() -> str:
+    """Generate a Solana-style base58 transaction signature (~88 chars)."""
+    return "".join(random.choice(BASE58_ALPHABET) for _ in range(88))
 
 
-def generate_eth_address(existing: set[str]) -> str:
-    """Generate a unique Ethereum-style 20-byte address."""
+def generate_sol_address(existing: set[str]) -> str:
+    """Generate a unique Solana-style base58 address (44 chars)."""
     while True:
-        candidate = "0x" + "".join(random.choice(HEX_ALPHABET) for _ in range(40))
+        candidate = "".join(random.choice(BASE58_ALPHABET) for _ in range(44))
         if candidate not in existing:
             existing.add(candidate)
             return candidate
@@ -189,7 +191,7 @@ def generate_eth_address(existing: set[str]) -> str:
 
 def edge_metadata(amount_sol: float | None = None, slot: int | None = None) -> dict[str, Any]:
     return {
-        "tx_signature": generate_eth_tx_hash(),
+        "tx_signature": generate_sol_signature(),
         "amount_sol": round(amount_sol if amount_sol is not None else random.uniform(0.05, 12.0), 4),
         "slot": slot if slot is not None else STARTING_SLOT + random.randint(1, 10_000_000),
     }
@@ -279,7 +281,7 @@ def build_scale_free_graph() -> nx.DiGraph:
         TEST_WALLET_POISONED,
     }
     id_to_address = {
-        node_id: generate_eth_address(addresses)
+        node_id: generate_sol_address(addresses)
         for node_id in raw_graph.nodes
     }
 
@@ -307,7 +309,7 @@ def simulate_transfer_into_wallet(
     sender_wallet: str,
     recipient_wallet: str,
     amount_sol: float,
-    token: str = "ETH",
+    token: str = "SOL",
 ) -> None:
     ensure_wallet_node(graph, sender_wallet, label="Submitted sender wallet")
     ensure_wallet_node(graph, recipient_wallet, label="Exchange deposit address")
@@ -333,7 +335,7 @@ def simulate_transfer_into_wallet(
         ensure_wallet_node(graph, LAZARUS_EXPLOIT, label="OFAC: Lazarus Group")
         add_transaction(graph, LAZARUS_EXPLOIT, sender_wallet, scaled, transfer_slot - 180)
     else:  # plain peel chain, no mixer
-        hop = "0x" + "".join(random.choice(HEX_ALPHABET) for _ in range(40))
+        hop = "".join(random.choice(BASE58_ALPHABET) for _ in range(44))
         ensure_wallet_node(graph, GARANTEX, label="OFAC: Garantex")
         graph.add_node(hop, label="Pass-through wallet", source="screen_request")
         add_transaction(graph, GARANTEX, hop, max(0.5, amount_sol * 1.8), transfer_slot - 420)
@@ -616,10 +618,11 @@ def address_label(graph: nx.DiGraph, address: str, fallback: str = "Unknown wall
 
 
 def classify_node_kind(graph: nx.DiGraph, address: str, *, is_sender: bool = False) -> str:
-    if is_sender:
-        return "sender"
+    # A directly-matched sanctioned wallet stays red even when it's the sender.
     if address in BLOCKED_WALLETS:
         return "sanctioned"
+    if is_sender:
+        return "sender"
     if graph.nodes.get(address, {}).get("source") == "mixer_inflow":
         return "wallet"
     label = address_label(graph, address).lower()
@@ -640,11 +643,11 @@ def edge_label(graph: nx.DiGraph, source: str, target: str, fallback: str = "beh
     amount = edge_amount(graph, source, target)
     if amount is None:
         return fallback
-    return f"{amount:.4f} ETH"
+    return f"{amount:.4f} SOL"
 
 
 def derive_deposit_amount(graph: nx.DiGraph, wallet: str, value_path: list[str] | None = None) -> float:
-    """The ETH amount associated with a wallet's deposit/off-ramp.
+    """The SOL amount associated with a wallet's deposit/off-ramp.
 
     Prefers the wallet's largest outbound transfer; falls back to the funds that
     arrived along the taint path, then to its largest inbound transfer.
@@ -663,9 +666,9 @@ def derive_deposit_amount(graph: nx.DiGraph, wallet: str, value_path: list[str] 
 
 
 def off_ramp_label(graph: nx.DiGraph, checked_wallet: str, value_path: list[str] | None = None) -> str:
-    """ETH amount the sender forwards to the exchange, as an edge label."""
+    """SOL amount the sender forwards to the exchange, as an edge label."""
     amount = derive_deposit_amount(graph, checked_wallet, value_path)
-    return f"{amount:.4f} ETH" if amount > 0 else ""
+    return f"{amount:.4f} SOL" if amount > 0 else ""
 
 
 def signal_breakdown(
@@ -693,11 +696,14 @@ def signal_breakdown(
             if amount is not None:
                 amounts.append(amount)
         mixer_nodes = [node for node in value_path[:-1] if classify_node_kind(graph, node) == "mixer"]
+        # On a direct match the path is a single node (no edges), so fall back to the
+        # wallet's own deposit amount instead of reporting 0 exposed volume.
+        exposed = min(amounts) if amounts else derive_deposit_amount(graph, value_path[-1])
         return {
             "hops_to_sanctioned": max(0, len(value_path) - 1),
             "mixer_in_path": len(mixer_nodes) > 0,
             "mixer_label": address_label(graph, mixer_nodes[0]) if mixer_nodes else None,
-            "exposed_volume_sol": min(amounts) if amounts else 0.0,
+            "exposed_volume_sol": exposed,
             "hops_traced": min(MAX_REVERSE_HOPS, max(1, len(value_path) - 1)),
             "sanction_label": address_label(graph, value_path[0], fallback="Blocked source"),
         }
@@ -804,11 +810,17 @@ def build_transaction_graph(
         if resolved_id in existing_ids:
             return resolved_id
         existing_ids.add(resolved_id)
+        # A normal sender is labeled "Sender"; a directly-blocked sender keeps its
+        # sanction label so the red node reads as the OFAC entity it matched.
+        if force_sender and address not in BLOCKED_WALLETS:
+            node_label = "Sender"
+        else:
+            node_label = address_label(graph, address)
         nodes.append({
             "id": resolved_id,
             "type": classify_node_kind(graph, address, is_sender=force_sender),
             "position": {"x": col * 280, "y": row * 120},
-            "data": {"label": "Sender" if force_sender else address_label(graph, address), "address": address},
+            "data": {"label": node_label, "address": address},
         })
         by_address[address] = resolved_id
         return resolved_id
@@ -848,7 +860,7 @@ def build_transaction_graph(
             "id": f"e-{source_id}-{sender_id}",
             "source": source_id,
             "target": sender_id,
-            "label": f"{float(quarantine['quarantined_amount_sol']):.4f} ETH",
+            "label": f"{float(quarantine['quarantined_amount_sol']):.4f} SOL",
             "className": "edge-danger",
             "type": "smoothstep",
         })
@@ -907,11 +919,14 @@ def build_transaction_graph(
         "position": {"x": (max_col + 1) * 280, "y": 0},
         "data": {"label": "Your hot wallet", "address": EXCHANGE_HOT_WALLET},
     })
+    # A quarantined (dusting) wallet never forwarded funds to the exchange, so the
+    # off-ramp edge reads "no off-ramp" instead of mislabeling an unrelated inflow.
+    off_ramp = "no off-ramp" if quarantine is not None else off_ramp_label(graph, checked_wallet, value_path)
     edges.append({
         "id": "e-sender-exchange",
         "source": "sender",
         "target": "exchange",
-        "label": off_ramp_label(graph, checked_wallet, value_path),
+        "label": off_ramp,
         "className": "edge-tainted-faded",
         "type": "smoothstep",
     })
@@ -1096,6 +1111,137 @@ def find_identity_exposure(
     return best_match
 
 
+def compute_risk_score(
+    verdict: str,
+    hops_detected: int | None,
+    signal_breakdown: dict[str, Any],
+    identity_link: dict[str, Any] | None,
+    quarantine: dict[str, Any] | None,
+) -> int:
+    """Deterministic 0–100 risk score derived from the verdict and signals.
+
+    Direct sanctions hits dominate; quarantined dust is near-zero; review cases
+    are spread across a band based on hop distance, mixer presence, and exposed
+    volume so distinct cases get distinct scores.
+    """
+    if verdict == "MATCH":
+        return 100
+    if quarantine is not None:
+        return 14
+    if identity_link is not None:
+        return round(float(identity_link["inherited_risk_score"]))
+    if verdict == "REVIEW":
+        hops = hops_detected
+        if hops is None:
+            hops = signal_breakdown.get("hops_to_sanctioned") or 3
+        # Closer to the sanctioned source = higher; a mixer and larger exposed
+        # volume push it up further.
+        score = 84 - (hops - 1) * 9
+        if signal_breakdown.get("mixer_in_path"):
+            score += 7
+        score += min(8, round(float(signal_breakdown.get("exposed_volume_sol", 0.0))))
+        return max(40, min(96, score))
+    return 6
+
+
+def _fmt_sol(amount: float) -> str:
+    if amount <= 0:
+        return "0 SOL"
+    if amount < 1:
+        return f"{amount:.4f} SOL"
+    return f"{amount:.2f} SOL"
+
+
+def _hops_phrase(hops: int) -> str:
+    return "1 hop" if hops == 1 else f"{hops} hops"
+
+
+def build_reasoning(
+    verdict: str,
+    hops_detected: int | None,
+    signal_breakdown: dict[str, Any],
+    identity_link: dict[str, Any] | None,
+    quarantine: dict[str, Any] | None,
+) -> tuple[list[dict[str, str]], str]:
+    """Single source of truth for the case narrative.
+
+    Returns an ordered list of structured risk factors (rendered as "Why this
+    verdict") and a pre-filled audit note derived from the *same* data, so the
+    two always agree and stay specific to the case.
+    """
+    sb = signal_breakdown
+    exposed = float(sb.get("exposed_volume_sol", 0.0))
+    sanction = sb.get("sanction_label") or "a sanctioned source"
+    mixer_in = bool(sb.get("mixer_in_path"))
+    mixer_label = sb.get("mixer_label") or "a known mixer"
+
+    if verdict == "MATCH":
+        factors = [
+            {"type": "match", "text": f"Sender address is a direct match to {sanction} on the sanctions list."},
+            {"type": "exposed", "text": f"Deposit amount: {_fmt_sol(exposed)}."},
+            {"type": "policy", "text": "Direct OFAC matches are auto-rejected at the off-ramp — no analyst discretion."},
+        ]
+        note = (
+            f"Direct sanctions hit: sender matches {sanction}. "
+            f"Deposit of {_fmt_sol(exposed)} auto-rejected per policy (direct OFAC match)."
+        )
+        return factors, note
+
+    if quarantine is not None:
+        factors = [
+            {"type": "quarantine", "text": f"Received {_fmt_sol(exposed)} of unsolicited dust from {sanction}."},
+            {"type": "clean", "text": "No outbound movement — the exposure is isolated, not propagated downstream."},
+            {"type": "policy", "text": "Quarantined instead of flagging the wallet; protects against dusting / taint-poisoning."},
+        ]
+        note = (
+            f"Quarantined: {_fmt_sol(exposed)} dust received from {sanction}; no outbound movement detected. "
+            "Exposure isolated — wallet not flagged. Accepted."
+        )
+        return factors, note
+
+    if identity_link is not None:
+        confidence = float(identity_link["confidence"]) * 100
+        evidence = "; ".join(identity_link.get("evidence", [])) or "behavioral overlap"
+        linked_hops = int(identity_link["linked_wallet_hops_to_blocked"])
+        factors = [
+            {"type": "identity", "text": f"Behaviorally linked to a tainted wallet with {confidence:.1f}% confidence."},
+            {"type": "identity", "text": f"Evidence: {evidence}."},
+            {"type": "hops", "text": f"The linked wallet sits {_hops_phrase(linked_hops)} from a blocked source."},
+            {"type": "policy", "text": "Identity links are probabilistic, so the case is reviewed rather than auto-blocked."},
+        ]
+        note = (
+            f"Flagged via identity link: behaviorally matched to a tainted wallet "
+            f"({confidence:.1f}% confidence; {evidence}). Linked wallet is {_hops_phrase(linked_hops)} "
+            "from a blocked source. Probabilistic match — routed to analyst review."
+        )
+        return factors, note
+
+    if verdict == "REVIEW":
+        hops = hops_detected if hops_detected is not None else int(sb.get("hops_to_sanctioned", 0))
+        factors = [
+            {"type": "hops", "text": f"Funds reached the sender {_hops_phrase(hops)} downstream of {sanction}."},
+        ]
+        if mixer_in:
+            factors.append({"type": "mixer", "text": f"Path routes through {mixer_label}, used to obscure fund origin."})
+        factors.append({"type": "exposed", "text": f"Tainted volume reaching the wallet: {_fmt_sol(exposed)}."})
+        factors.append({"type": "policy", "text": "Indirect taint within the review hop-window requires analyst review, not an auto-block."})
+
+        note_parts = [f"Flagged: tainted funds reached the sender {_hops_phrase(hops)} after {sanction}."]
+        if mixer_in:
+            note_parts.append(f"Path includes {mixer_label}, used to obscure origin.")
+        note_parts.append(f"Exposed volume {_fmt_sol(exposed)}. Routed to analyst review per policy.")
+        return factors, " ".join(note_parts)
+
+    # NO MATCH, no quarantine — genuinely clean.
+    hops_traced = int(sb.get("hops_traced", MAX_REVERSE_HOPS))
+    factors = [
+        {"type": "clean", "text": f"No blocked source found within the {hops_traced}-hop reverse search."},
+        {"type": "clean", "text": "No risky identity links detected."},
+    ]
+    note = "No sanctions exposure within traced hops and no risky identity links. Auto-accepted."
+    return factors, note
+
+
 def format_result(
     started_at: float,
     checked_wallet: str,
@@ -1108,13 +1254,21 @@ def format_result(
     identity_link: dict[str, Any] | None = None,
     quarantine: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    risk_factors, audit_note = build_reasoning(
+        verdict, hops_detected, signal_breakdown, identity_link, quarantine
+    )
     result = {
         "checked_wallet": checked_wallet,
         "verdict": verdict,
         "hops_detected": hops_detected,
         "execution_time_ms": round((time.perf_counter() - started_at) * 1000, 3),
+        "risk_score": compute_risk_score(
+            verdict, hops_detected, signal_breakdown, identity_link, quarantine
+        ),
         "risk_sources": risk_sources,
         "explanation": explanation,
+        "risk_factors": risk_factors,
+        "audit_note": audit_note,
         "signal_breakdown": signal_breakdown,
         "transaction_graph": transaction_graph,
     }
@@ -1144,17 +1298,18 @@ def base_graph_and_context() -> tuple[nx.DiGraph, RiskContext]:
 def run_test_runner() -> list[dict[str, Any]]:
     graph, context = base_graph_and_context()
     # Each wallet produces a distinct graph topology (direct match, mixer paths,
-    # plain peel chain, identity link, dusting, clean).
+    # plain peel chain, identity link, dusting, clean). The first three REVIEW
+    # cases seed the "Pending" column and the next two seed "Awaiting documents"
+    # (see column seeding in ChainSightApp).
     test_wallets = [
-        TEST_WALLET_DIRECT_MATCH,
-        WALLET_TORNADO_2HOP,
-        WALLET_SINBAD_2HOP,
-        TEST_WALLET_INDIRECT_TAINT,
-        WALLET_PLAIN_CHAIN,
-        WALLET_DIRECT_1HOP,
-        TEST_WALLET_IDENTITY_LINKED,
-        TEST_WALLET_POISONED,
-        TEST_WALLET_CLEAN,
+        TEST_WALLET_DIRECT_MATCH,     # BLOCKED — direct OFAC match
+        WALLET_TORNADO_2HOP,          # REVIEW  — pending
+        WALLET_SINBAD_2HOP,           # REVIEW  — pending
+        WALLET_PLAIN_CHAIN,           # REVIEW  — pending
+        WALLET_DIRECT_1HOP,           # REVIEW  — awaiting
+        TEST_WALLET_IDENTITY_LINKED,  # REVIEW  — awaiting (identity link)
+        TEST_WALLET_POISONED,         # CLEARED — quarantined dust
+        TEST_WALLET_CLEAN,            # CLEARED — clean
     ]
     return [evaluate_wallet_risk(graph, wallet, context) for wallet in test_wallets]
 

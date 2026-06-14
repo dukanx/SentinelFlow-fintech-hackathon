@@ -1,4 +1,5 @@
 import { BLOCK_THRESHOLD, REVIEW_THRESHOLD } from "@/lib/config";
+import { useCountUp } from "./CountUp";
 
 interface Props {
   score: number;
@@ -6,6 +7,7 @@ interface Props {
 
 export function RiskBar({ score }: Props) {
   const clamped = Math.max(0, Math.min(100, score));
+  const animated = useCountUp(clamped, 800);
   const tone =
     clamped >= BLOCK_THRESHOLD
       ? "text-[oklch(0.55_0.22_25)]"
@@ -21,7 +23,7 @@ export function RiskBar({ score }: Props) {
           className={`text-[56px] leading-none font-semibold tabular-nums ${tone}`}
           style={{ fontFamily: "'IBM Plex Mono', ui-monospace, monospace", letterSpacing: "-0.02em" }}
         >
-          {clamped}
+          {Math.round(animated)}
         </div>
         <div className="text-xs text-muted-foreground flex flex-col leading-tight">
           <span className="font-mono">/ 100</span>
@@ -55,7 +57,7 @@ export function RiskBar({ score }: Props) {
         <div className="relative h-2">
           <div
             className="absolute -top-px"
-            style={{ left: `calc(${clamped}% - 5px)` }}
+            style={{ left: `calc(${animated}% - 5px)` }}
           >
             <svg width="10" height="8" viewBox="0 0 10 8">
               <path d="M5 0 L10 8 L0 8 Z" fill="oklch(0.22 0.02 255)" />

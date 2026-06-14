@@ -19,6 +19,21 @@ export interface DepositGraph {
   edges: Edge[];
 }
 
+export type RiskFactorType =
+  | "match"
+  | "hops"
+  | "mixer"
+  | "exposed"
+  | "identity"
+  | "quarantine"
+  | "clean"
+  | "policy";
+
+export interface RiskFactor {
+  type: RiskFactorType | string;
+  text: string;
+}
+
 export interface Deposit {
   id: string;
   sender: string;
@@ -28,7 +43,8 @@ export interface Deposit {
   riskScore: number; // 0..100
   verdict: Verdict;
   directHit: boolean;
-  reasons: string[]; // 2-3 sentences for "Why this verdict"
+  factors: RiskFactor[]; // structured "Why this verdict" items (from backend)
+  auditNote: string; // pre-filled audit note (from backend, same source as factors)
   signals: DepositSignals;
   graph?: DepositGraph;
   // Initial kanban column for REVIEW verdicts

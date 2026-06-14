@@ -143,7 +143,23 @@
 }
 .react-flow__edge.edge-danger .react-flow__edge-path {
   stroke: var(--verdict-blocked);
+  stroke-width: 2.2;
+  stroke-dasharray: 6 4;
+  animation: dashdraw 0.55s linear infinite;
+}
+.react-flow__edge.edge-tainted .react-flow__edge-path {
+  stroke: var(--verdict-review);
   stroke-width: 2;
+  stroke-dasharray: 6 4;
+  animation: dashdraw 0.65s linear infinite;
+}
+.react-flow__edge.edge-tainted-faded .react-flow__edge-path {
+  stroke: var(--verdict-review);
+  stroke-width: 1.6;
+  opacity: 0.5;
+}
+.react-flow__edge.edge-clean .react-flow__edge-path {
+  stroke: oklch(0.72 0.02 250);
 }
 .react-flow__edge.edge-warn .react-flow__edge-path {
   stroke: var(--verdict-review);
@@ -154,3 +170,44 @@
 .react-flow__background { background-color: var(--surface-2); }
 .react-flow__attribution { display: none; }
 .react-flow__handle { opacity: 0; }
+
+/* ── Motion ──────────────────────────────────────────────────────────────── */
+@keyframes dashdraw {
+  to { stroke-dashoffset: -20; }
+}
+
+@keyframes float-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-float-in {
+  animation: float-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pop-in {
+  0% { opacity: 0; transform: scale(0.94); }
+  60% { transform: scale(1.01); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.animate-pop-in {
+  animation: pop-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+
+/* Soft animated sheen used on KPI / accent bars */
+@keyframes sheen {
+  from { background-position: -150% 0; }
+  to { background-position: 250% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

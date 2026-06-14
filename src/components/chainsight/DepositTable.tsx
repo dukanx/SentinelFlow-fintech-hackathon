@@ -1,8 +1,9 @@
 import type { Deposit } from "@/lib/mock-data";
 import { VerdictBadge } from "./VerdictBadge";
-import { truncateAddress, formatTime } from "@/lib/format";
+import { truncateAddress, formatRelative, formatDateTime } from "@/lib/format";
 import { RiskMiniBar, scoreColorClass } from "./RiskMiniBar";
 import { AnalystAvatar } from "./AnalystAvatar";
+import { CountUp } from "./CountUp";
 import { ChevronRight } from "lucide-react";
 
 interface Props {
@@ -34,7 +35,7 @@ export function DepositTable({ deposits, onOpen, emptyLabel = "No deposits." }: 
           </tr>
         </thead>
         <tbody>
-          {deposits.map((d) => {
+          {deposits.map((d, i) => {
             const dot =
               d.verdict === "CLEARED"
                 ? "bg-verdict-cleared"
@@ -45,7 +46,8 @@ export function DepositTable({ deposits, onOpen, emptyLabel = "No deposits." }: 
               <tr
                 key={d.id}
                 onClick={() => onOpen(d)}
-                className="border-t cursor-pointer transition-colors hover:bg-surface-2"
+                style={{ animationDelay: `${Math.min(i, 12) * 35}ms` }}
+                className="group animate-float-in border-t cursor-pointer transition-colors hover:bg-surface-2"
               >
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-2.5">
@@ -63,14 +65,16 @@ export function DepositTable({ deposits, onOpen, emptyLabel = "No deposits." }: 
                     {d.amount} <span className="text-muted-foreground">{d.token}</span>
                   </div>
                 </td>
-                <td className="px-5 py-3 text-muted-foreground">{formatTime(d.receivedAt)}</td>
+                <td className="px-5 py-3">
+                  <div className="text-foreground/80">{formatRelative(d.receivedAt)}</div>
+                  <div className="text-[11px] text-muted-foreground">{formatDateTime(d.receivedAt)}</div>
+                </td>
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-3">
-                    <span
+                    <CountUp
+                      value={d.riskScore}
                       className={`font-mono font-semibold text-base w-6 ${scoreColorClass(d.riskScore)}`}
-                    >
-                      {d.riskScore}
-                    </span>
+                    />
                     <RiskMiniBar score={d.riskScore} width={120} />
                   </div>
                 </td>
@@ -81,7 +85,7 @@ export function DepositTable({ deposits, onOpen, emptyLabel = "No deposits." }: 
                   <VerdictBadge verdict={d.verdict} />
                 </td>
                 <td className="px-3 py-3 text-muted-foreground">
-                  <ChevronRight className="size-4" />
+                  <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
                 </td>
               </tr>
             );

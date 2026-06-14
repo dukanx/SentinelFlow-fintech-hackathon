@@ -10,9 +10,12 @@ export interface RiskRunnerResult {
   verdict: RiskRunnerVerdict;
   hops_detected: number | null;
   execution_time_ms: number;
+  risk_score: number;
   deposit_amount: number;
   risk_sources: string[];
   explanation: string;
+  risk_factors: Array<{ type: string; text: string }>;
+  audit_note: string;
   signal_breakdown: {
     hops_to_sanctioned: number;
     mixer_in_path: boolean;
