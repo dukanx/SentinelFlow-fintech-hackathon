@@ -18,6 +18,11 @@ from typing import Any
 
 import networkx as nx
 
+from scripts.zk_clean_funds import (
+    build_clean_association_set,
+    generate_clean_funds_proof,
+)
+
 
 # Solana addresses and signatures are base58-encoded (Bitcoin alphabet: no 0, O, I, l).
 BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
@@ -321,16 +326,34 @@ def simulate_transfer_into_wallet(
     recipient_wallet: str,
     amount_sol: float,
     token: str = "SOL",
+    scenario: str | None = None,
 ) -> None:
     ensure_wallet_node(graph, sender_wallet, label="Submitted sender wallet")
     ensure_wallet_node(graph, recipient_wallet, label="Exchange deposit address")
 
     transfer_slot = STARTING_SLOT + 60_000_000 + random.randint(1, 50_000)
+    scaled = max(0.3, amount_sol * 1.4)
+
+    # Private (shielded) deposit through the gone.wtf privacy pool. The funds are
+    # routed wallet -> pool -> recipient; cleanliness depends only on how the
+    # *wallet* itself was funded, which the zk proof attests to without revealing
+    # sender/recipient/amount.
+    if scenario in ("zk_clean", "zk_tainted"):
+        ensure_wallet_node(graph, TORNADO_CASH, label="gone.wtf mixer")
+        if scenario == "zk_clean":
+            ensure_wallet_node(graph, BINANCE_HOT, label=LEGITIMATE_HUBS[BINANCE_HOT])
+            add_transaction(graph, BINANCE_HOT, sender_wallet, max(0.5, amount_sol * 1.6), transfer_slot - 420)
+        else:
+            ensure_wallet_node(graph, GARANTEX, label="OFAC: Garantex")
+            add_transaction(graph, GARANTEX, sender_wallet, max(0.5, amount_sol * 2.2), transfer_slot - 420)
+        add_transaction(graph, sender_wallet, TORNADO_CASH, max(0.3, amount_sol * 1.0), transfer_slot - 120)
+        add_transaction(graph, TORNADO_CASH, recipient_wallet, scaled, transfer_slot - 60)
+        return
+
     add_transaction(graph, sender_wallet, recipient_wallet, amount_sol, transfer_slot)
 
     # Pick a taint channel at random so each send produces a different graph.
     pattern = random.choice(["tornado", "sinbad", "direct", "chain"])
-    scaled = max(0.3, amount_sol * 1.4)
 
     if pattern == "tornado":
         ensure_wallet_node(graph, LAZARUS_EXPLOIT, label="OFAC: Lazarus Group")
@@ -1439,6 +1462,7 @@ def run_transfer_screening(
     recipient_wallet: str,
     amount_sol: float,
     token: str,
+    scenario: str | None = None,
 ) -> dict[str, Any]:
     base_graph, base_context = base_graph_and_context()
     graph = base_graph.copy()
@@ -1448,6 +1472,7 @@ def run_transfer_screening(
         recipient_wallet=recipient_wallet,
         amount_sol=amount_sol,
         token=token,
+        scenario=scenario,
     )
     # The injected taint channel guarantees a deterministic value path to the
     # sender, so the cached identity context is sufficient (no rebuild needed).
@@ -1458,6 +1483,61 @@ def run_transfer_screening(
         "amount": amount_sol,
         "token": token,
     }
+
+    # Private (shielded) deposit: the funds enter the gone.wtf privacy pool, so
+    # the on-chain sender/recipient/amount are hidden. Instead of tracing, attach
+    # a zk-STARK clean-funds proof. Membership in the CLEAN association set holds
+    # only if the wallet has no sanctioned source upstream.
+    if scenario in ("zk_clean", "zk_tainted"):
+        pool_id = "gone.wtf mixer"
+        leaves = build_clean_association_set(graph, TORNADO_CASH, BLOCKED_WALLETS)
+        is_member = find_blocked_source_path(graph, sender_wallet) is None
+        result["zk_proof"] = generate_clean_funds_proof(
+            sender=sender_wallet,
+            recipient=recipient_wallet,
+            amount=amount_sol,
+            pool_id=pool_id,
+            leaves=leaves,
+            is_member=is_member,
+        )
+        if is_member:
+            result["verdict"] = "NO MATCH"
+            result["risk_score"] = 8
+            result["risk_factors"] = [
+                {
+                    "type": "clean",
+                    "text": (
+                        "Clean-funds membership proven via zk-STARK: the deposit belongs to the "
+                        "curated clean association set of the gone.wtf pool (no sanctioned source). "
+                        "Sender, recipient and amount remain shielded."
+                    ),
+                },
+                {
+                    "type": "policy",
+                    "text": "Compliance satisfied by proof-of-innocence — no on-chain tracing required.",
+                },
+            ]
+            result["audit_note"] = (
+                "Private deposit accepted on the basis of a verified zk-STARK clean-funds proof "
+                "(association-set membership). On-chain transaction details are shielded."
+            )
+        else:
+            result["risk_factors"] = [
+                {
+                    "type": "obfuscation",
+                    "text": (
+                        "zk-STARK clean-funds proof could NOT be produced — the deposit traces to a "
+                        "sanctioned source, so it is excluded from the pool's clean association set "
+                        "(proof-of-innocence failed)."
+                    ),
+                },
+                *result.get("risk_factors", []),
+            ]
+            result["audit_note"] = (
+                "Private deposit rejected: no valid zk-STARK clean-funds proof. "
+                + result.get("audit_note", "")
+            )
+
     return result
 
 

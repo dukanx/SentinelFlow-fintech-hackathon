@@ -25,6 +25,9 @@ class ScreenTransferRequest(BaseModel):
     recipient_wallet: str
     amount: float
     token: str = "SOL"
+    # "zk_clean" / "zk_tainted" trigger a private (shielded) deposit with a
+    # zk-STARK clean-funds proof; None keeps the existing public-send behavior.
+    scenario: str | None = None
 
 
 @asynccontextmanager
@@ -69,5 +72,7 @@ def screen_transfer(request: ScreenTransferRequest) -> dict:
         recipient_wallet=request.recipient_wallet,
         amount_sol=request.amount,
         token=request.token,
+        scenario=request.scenario,
     )
+
 

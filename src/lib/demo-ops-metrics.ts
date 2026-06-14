@@ -25,7 +25,6 @@ export interface OpsAlert {
 
 const BASE_VOLUME = 847.2;
 const BASE_HOLDS = 11;
-const BASE_PENDING = 5;
 const BASE_FP_RATE = 4.2;
 
 const SYNTHETIC_ALERTS: OpsAlert[] = [
@@ -161,7 +160,8 @@ export function computeHeroMetrics(deposits: Deposit[], jitter = 0): HeroMetrics
   return {
     volumeMonitoredUsd: BASE_VOLUME + jitter * 0.1,
     activeHolds: BASE_HOLDS + blocked,
-    pendingAlerts: BASE_PENDING + review,
+    // Match the "Needs Review" count exactly — one pending alert per REVIEW case.
+    pendingAlerts: review,
     falsePositiveRate: BASE_FP_RATE,
   };
 }

@@ -42,6 +42,56 @@ function relayDeposit(d: Deposit) {
   }
 }
 
+// Wallet-initiated sends (id prefix `dep-w-`) are user-generated test events. We
+// persist them in *sessionStorage* so they survive a page refresh, but reset on
+// every fresh launch (new tab/session) — so each startup begins from the same
+// baseline deposit count and last session's test sends are gone.
+const WALLET_DEPOSITS_KEY = "chainsight:wallet-deposits";
+const MAX_PERSISTED_WALLET_DEPOSITS = 50;
+
+function isWalletDeposit(d: Deposit): boolean {
+  return d.id.startsWith("dep-w-");
+}
+
+function dedupeById(deposits: Deposit[]): Deposit[] {
+  const seen = new Set<string>();
+  return deposits.filter((d) => (seen.has(d.id) ? false : (seen.add(d.id), true)));
+}
+
+function loadPersistedWalletDeposits(): Deposit[] {
+  try {
+    // One-time cleanup of the previous localStorage-based persistence so stale
+    // test sends from older runs don't linger.
+    localStorage.removeItem(WALLET_DEPOSITS_KEY);
+    const raw = sessionStorage.getItem(WALLET_DEPOSITS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as Deposit[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Newest-first list of persisted wallet sends; also the rehydration source.
+let persistedWalletDeposits: Deposit[] =
+  typeof sessionStorage !== "undefined" ? loadPersistedWalletDeposits() : [];
+
+function persistWalletDeposit(d: Deposit) {
+  if (!isWalletDeposit(d)) return;
+  persistedWalletDeposits = dedupeById([d, ...persistedWalletDeposits]).slice(
+    0,
+    MAX_PERSISTED_WALLET_DEPOSITS,
+  );
+  try {
+    sessionStorage.setItem(WALLET_DEPOSITS_KEY, JSON.stringify(persistedWalletDeposits));
+  } catch {
+    // Persistence is best-effort; ignore quota/availability errors.
+  }
+}
+
+// Rehydrate persisted wallet sends into the initial state (before backend load).
+state = dedupeById([...persistedWalletDeposits, ...state]);
+
 let announcements: Deposit[] = [];
 const announcementListeners = new Set<() => void>();
 
@@ -69,7 +119,9 @@ function applyDeposits(
   error: string | null = null,
 ) {
   hydratedFromBackend = source === "live";
-  depositStore.replaceAll([...pendingLocalAdds, ...deposits]);
+  // Keep persisted wallet sends (and any not-yet-hydrated local adds) on top of
+  // the freshly loaded backend deposits so they survive reloads.
+  depositStore.replaceAll(dedupeById([...persistedWalletDeposits, ...pendingLocalAdds, ...deposits]));
   pendingLocalAdds = [];
   setLoadSource(source, error);
 }
@@ -104,6 +156,9 @@ export const depositStore = {
     if (!hydratedFromBackend) {
       pendingLocalAdds = [d, ...pendingLocalAdds];
     }
+    // Persist wallet sends so their live-alert entries survive page reloads
+    // (and propagate the persisted set to other tabs).
+    persistWalletDeposit(d);
     state = [d, ...state];
     if (opts?.announce) {
       announcements = [...announcements, d];
@@ -321,6 +376,7 @@ export async function createWalletDepositFromBackend(opts: {
   amount: string;
   token: string;
   recipient: string;
+  scenario?: "zk_clean" | "zk_tainted";
 }): Promise<Deposit> {
   const parsedAmount = Number.parseFloat(opts.amount);
   const result = await screenTransfer({
@@ -329,10 +385,28 @@ export async function createWalletDepositFromBackend(opts: {
       recipient_wallet: opts.recipient,
       amount: Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : 0.1,
       token: opts.token.toUpperCase(),
+      scenario: opts.scenario,
     },
   });
   const mapped = mapRiskResultToDeposit(result, state.length + 1);
   const id = `dep-w-${Math.random().toString(36).slice(2, 7)}`;
+
+  // Private (shielded) deposit: keep the backend's verdict/factors (driven by the
+  // zk clean-funds proof) and attach the proof, instead of the public-send REVIEW
+  // narrative below.
+  if (opts.scenario) {
+    return {
+      ...mapped,
+      id,
+      sender: opts.sender,
+      amount: opts.amount,
+      token: opts.token.toUpperCase(),
+      receivedAt: new Date().toISOString(),
+      initialColumn: mapped.verdict === "REVIEW" ? "pending" : undefined,
+      assigneeId: mapped.verdict === "REVIEW" ? "mr" : undefined,
+      zkProof: result.zk_proof,
+    };
+  }
 
   const graph = mapped.graph
     ? {

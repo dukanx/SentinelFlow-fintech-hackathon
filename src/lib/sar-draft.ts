@@ -10,7 +10,7 @@ export interface SarDraftInput {
   analystDecision?: "BLOCKED" | "ACCEPTED";
 }
 
-function estimateTaintPercent(deposit: Deposit): number {
+export function estimateTaintPercent(deposit: Deposit): number {
   if (deposit.directHit) return 100;
   if (deposit.behavioralAlert?.type === "velocity_structuring") return 65;
   if (deposit.signals.mixerInPath) return Math.min(95, 70 + deposit.signals.hopsToSanctioned * 5);
@@ -94,14 +94,4 @@ PART IV — CERTIFICATION (placeholder)
 
 END OF DRAFT
 `;
-}
-
-export function downloadSarDraft(text: string, caseId: string, filingType: FilingType) {
-  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${caseId}-${filingType.toLowerCase()}-draft.txt`;
-  a.click();
-  URL.revokeObjectURL(url);
 }

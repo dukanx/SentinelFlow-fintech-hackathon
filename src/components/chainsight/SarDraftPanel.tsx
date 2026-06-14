@@ -3,11 +3,8 @@ import { createPortal } from "react-dom";
 import { Copy, Download, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Deposit } from "@/lib/mock-data";
-import {
-  downloadSarDraft,
-  generateSarDraft,
-  type FilingType,
-} from "@/lib/sar-draft";
+import { generateSarDraft, type FilingType } from "@/lib/sar-draft";
+import { downloadSarPdf } from "@/lib/sar-pdf";
 import { auditLog } from "@/lib/audit-log";
 
 interface Props {
@@ -30,12 +27,12 @@ export function SarDraftPanel({ deposit, analystDecision, onClose }: Props) {
   }
 
   function handleDownload() {
-    downloadSarDraft(draft, deposit.id, filingType);
-    auditLog.append("SAR_DRAFT_EXPORTED", `Downloaded ${filingType} draft for ${deposit.id}.`, {
+    downloadSarPdf({ deposit, filingType, analystDecision });
+    auditLog.append("SAR_DRAFT_EXPORTED", `Downloaded ${filingType} PDF draft for ${deposit.id}.`, {
       caseId: deposit.id,
       wallet: deposit.sender,
     });
-    toast.success("Draft downloaded");
+    toast.success("PDF draft downloaded");
   }
 
   const panel = (
@@ -87,7 +84,7 @@ export function SarDraftPanel({ deposit, analystDecision, onClose }: Props) {
               className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border bg-primary/10 hover:bg-primary/20"
             >
               <Download className="size-3.5" />
-              Download .txt
+              Download PDF
             </button>
           </div>
         </div>

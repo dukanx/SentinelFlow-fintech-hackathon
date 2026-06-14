@@ -1,4 +1,5 @@
 import type { Node, Edge } from "@xyflow/react";
+import type { ZkCleanFundsProof } from "./zk-proof";
 
 export type Verdict = "CLEARED" | "REVIEW" | "BLOCKED";
 export type KanbanColumn = "pending" | "awaiting" | "ready";
@@ -63,6 +64,8 @@ export interface Deposit {
   initialColumn?: KanbanColumn;
   // Analyst id (key into ANALYSTS) assigned to this case
   assigneeId?: string;
+  // zk-STARK clean-funds proof for private (shielded) deposits
+  zkProof?: ZkCleanFundsProof;
 }
 
 // ---- Deposits ----

@@ -28,6 +28,7 @@ import { ActionDialog, type ActionKind } from "./ActionDialog";
 import { CopyAddress } from "./CopyAddress";
 import { DocumentsPanel } from "./DocumentsPanel";
 import { SarDraftPanel } from "./SarDraftPanel";
+import { ZkProofPanel } from "./ZkProofPanel";
 import { truncateAddress, formatDateTime, formatRelative, nowHHMM } from "@/lib/format";
 import { EXCHANGE_HOT_WALLET, EXCHANGE_NAME } from "@/lib/config";
 import { auditLog } from "@/lib/audit-log";
@@ -204,6 +205,13 @@ export function CaseDetail({
             </div>
           )}
         </div>
+
+        {/* zk-STARK clean-funds proof — only for private (shielded) deposits */}
+        {deposit.zkProof && (
+          <div className="mt-4">
+            <ZkProofPanel proof={deposit.zkProof} caseId={deposit.id} />
+          </div>
+        )}
 
         {/* Why + signals */}
         <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">

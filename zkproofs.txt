@@ -1,0 +1,288 @@
+================================================================================
+ChainSight — zk-STARK "clean funds" proofs (objašnjenje implementacije)
+================================================================================
+
+Ovaj dokument objašnjava KAKO radi i ZAŠTO je tako implementirano sve što je
+dodano oko privatnih transakcija i zk dokaza. Fokus je na zk proofs, ali je
+opisan i cijeli tok od demo novčanika do prikaza u dashboardu.
+
+--------------------------------------------------------------------------------
+0. TL;DR (ukratko)
+--------------------------------------------------------------------------------
+- Kad sredstva uđu u PRIVATNU transakciju (privacy pool "gone.wtf"), na chainu se
+  ne vide sender / receiver / amount. Tada NIJE moguće "tracirati" putanju kao kod
+  javnih transakcija.
+- Umjesto traciranja, korisnik generiše zk-STARK DOKAZ da njegov depozit pripada
+  "čistom" skupu depozita pool-a (bez sankcionisanih izvora) — tzv. proof of
+  innocence / "Privacy Pools" ideja.
+- Dokaz otkriva samo JAVNE podatke (commitment, Merkle root, nullifier, ruleset),
+  a sakriva sender / receiver / amount.
+- Berza (ChainSight) VERIFIKUJE dokaz umjesto da prati transakciju. Validan dokaz
+  => sredstva su dokazano čista => CLEARED. Ako sredstva vode do sankcionisanog
+  izvora, validan dokaz se NE može proizvesti => depozit se odbija.
+- Implementacija je SIMULACIJA zk-STARK-a (nema pravog STARK kola), ali je
+  verifikacija javnog iskaza STVARNA i deterministička, te identična u Pythonu i
+  TypeScriptu.
+
+--------------------------------------------------------------------------------
+1. Problem koji rješavamo (ZAŠTO)
+--------------------------------------------------------------------------------
+Ostatak demoa radi tako što screening "trasira" putanju novca kroz graf:
+  sender -> (mixer) -> ... -> exchange hot wallet
+i gleda koliko je "hops" udaljen sankcionisani izvor (OFAC: Garantex, Lazarus...).
+
+To radi SAMO za javne transakcije. Privacy pool / shielded transfer namjerno
+skriva pošiljaoca, primaoca i iznos, pa berza fizički ne može vidjeti odakle
+novac dolazi. Klasičan compliance ("pokaži mi cijelu putanju") tu pada.
+
+Rješenje iz prakse (Privacy Pools, Buterin et al.): korisnik dokazuje ZK dokazom
+da njegov depozit pripada kuriranom "association setu" čistih depozita — bez
+otkrivanja kojeg tačno depozita. Berza provjeri dokaz i prihvati povlačenje, a da
+nikad ne sazna identitet/iznos. Mi to demonstriramo sa zk-STARK varijantom.
+
+--------------------------------------------------------------------------------
+2. Ključni pojmovi
+--------------------------------------------------------------------------------
+- Privacy pool (kod nas: "gone.wtf mixer"): ugovor u koji mnogo novčanika
+  deponuje; povlačenja su na chainu neuvezana sa depozitima.
+- Association set: skup depozita pool-a koje smatramo prihvatljivim. "Clean
+  association set" = svi depoziti MINUS oni sa sankcionisanim/tainted porijeklom.
+- Merkle root: kratki hash (korijen stabla) koji "sažima" cijeli clean set. Ako
+  je tvoj depozit u setu, postoji Merkle putanja do root-a.
+- Nullifier: jednosmjerna funkcija tajnog depozita (leaf). Skriva pošiljaoca, ali
+  je stabilna po (sender, pool) — sprječava ponovno korištenje istog dokaza.
+- Public inputs: javni dio dokaza (root, nullifier, pool_id, ruleset_hash,
+  max_hops, membership). NE sadrži sender/receiver/amount.
+- Private witness: tajni dio (sender, receiver, amount, Merkle putanja) — dokaz ga
+  koristi ali ga NE otkriva. U UI-ju ga prikazujemo kao "shielded" (••••••).
+- Proof of innocence: dokaz da NEMA sankcionisanog izvora unutar K hops-a, tj. da
+  je depozit član clean seta.
+
+--------------------------------------------------------------------------------
+3. Tok kroz sistem (od dugmeta do dashboarda)
+--------------------------------------------------------------------------------
+  src/routes/wallet-zk.tsx           (privatni demo novčanik, 2 dugmeta)
+        |  createWalletDepositFromBackend({ ..., scenario })
+        v
+  src/lib/deposit-store.ts           (poziva server fn, mapira rezultat u Deposit)
+        |  screenTransfer({ data: { ..., scenario } })
+        v
+  src/lib/api/risk.functions.ts      (TanStack server fn -> POST /api/risk/screen-transfer)
+        v
+  scripts/risk_api_server.py         (FastAPI; ScreenTransferRequest.scenario)
+        |  run_transfer_screening(..., scenario)
+        v
+  scripts/solana_risk_runner.py      (gradi graf, evaluira rizik, kači zk_proof)
+        |  generate_clean_funds_proof(...)
+        v
+  scripts/zk_clean_funds.py          (commitmenti, Merkle, nullifier, MAC, verify)
+
+  Nazad gore: rezultat (uklj. zk_proof) -> Deposit.zkProof -> prikaz u:
+    - src/components/chainsight/ZkProofPanel.tsx  (kartica sa Verify/Download)
+    - src/components/chainsight/CaseDetail.tsx    (panel u slučaju)
+    - src/routes/wallet-zk.tsx                    (inline u modalu rezultata)
+  Verifikacija u browseru: src/lib/zk-proof.ts (verifyCleanFundsProof)
+
+--------------------------------------------------------------------------------
+4. Backend: scripts/zk_clean_funds.py (srce zk dijela)
+--------------------------------------------------------------------------------
+Sve je deterministički i bez dodatnih biblioteka (samo hashlib). Funkcije:
+
+- _h(*parts): SHA-256 nad "|".join(parts). Koristimo ga kao "Poseidon-style"
+  hash (u pravom STARK-u bi to bio hash prijateljski poljima, ovdje SHA-256).
+
+- _b(bool) -> "true"/"false": kanonsko renderovanje boola. VAŽNO: Python str(True)
+  je "True", a JS String(true) je "true". Da bi se hash poklopio sa TS-om, svuda
+  forsiramo mala slova "true"/"false".
+
+- leaf_commitment(addr) = _h("leaf", addr): commitment lista (ne stavljamo sirovu
+  adresu u stablo).
+
+- merkle_root(leaves): binarni Merkle root sa "duplicate-last" paddingom za
+  neparan broj čvorova. Sažima cijeli clean set u jedan hash.
+
+- build_clean_association_set(graph, pool_node, blocked): prethodnici pool čvora
+  IZUZEV onih u BLOCKED_WALLETS, sortirani (determinizam). Tainted ulaz (Garantex)
+  je namjerno ISKLJUČEN iz seta.
+
+- commitment_mac(...): JEDAN hash koji "veže" cijeli javni iskaz:
+    _h(pool_id, association_root, nullifier, RULESET_HASH, str(MAX_HOPS),
+       _b(is_member), VERIFYING_KEY)
+  Ovo je ono što verifier ponovo izračuna i uporedi. (Kanonski string je
+  identičan u zk-proof.ts — vidi sekciju 7.)
+
+- generate_clean_funds_proof(sender, recipient, amount, pool_id, leaves, is_member):
+  Sastavlja dokaz:
+    * public_inputs: association_root, nullifier, pool_id, ruleset_hash, max_hops,
+      membership (=is_member). BEZ sender/receiver/amount.
+    * redacted_witness: { sender, recipient, amount } = "shielded".
+    * commitment_mac: vezivanje iznad.
+    * proof_blob: ~512 hex znakova, deterministički izveden iz tajnog witnessa +
+      root-a. Ovo je NEPROZIRNI stand-in za STARK bajtove (nema pravog kola).
+    * metrics: proof_size_bytes, security_bits=96, num_queries=48, prover_ms,
+      verifier_ms (deterministički "izgledaju realno"), association_set_size.
+    * valid = is_member.
+
+- verify_clean_funds_proof(proof): ponovo izračuna commitment_mac iz public_inputs
+  i poredi; zatim traži membership == True i da je ruleset_hash jednak očekivanom.
+  Vraća { valid, checks: [...] }. Tainted dokaz ima membership=false => nevalidan.
+
+ZAŠTO ovako:
+- Determinizam => isti ulaz uvijek daje isti dokaz/MAC => verifikacija je
+  provjerljiva i cross-language.
+- Razdvajanje public_inputs vs witness => modelira upravo ono što ZK garantuje:
+  javni iskaz se provjerava, tajni podaci se ne otkrivaju.
+- commitment_mac je "lijepak": mijenjaš li ijedan javni ulaz, MAC se ne poklapa.
+
+--------------------------------------------------------------------------------
+5. Backend: integracija u runner (scripts/solana_risk_runner.py)
+--------------------------------------------------------------------------------
+- simulate_transfer_into_wallet(..., scenario): za zk scenarije gradi
+  PRIVATNI tok kroz pool umjesto nasumičnog javnog taint kanala:
+    zk_clean:   BINANCE_HOT (legit) -> wallet ;  wallet -> gone.wtf -> recipient
+    zk_tainted: GARANTEX (OFAC)     -> wallet ;  wallet -> gone.wtf -> recipient
+  (gone.wtf = konstanta TORNADO_CASH, labela "gone.wtf mixer".)
+
+- run_transfer_screening(..., scenario): nakon standardnog evaluate_wallet_risk
+  (koji da verdikt: zk_clean => NO MATCH/čist, zk_tainted => REVIEW jer Garantex
+  1 hop iznad), AKO je scenario zk_*:
+    * leaves = build_clean_association_set(graph, gone.wtf, BLOCKED_WALLETS)
+    * is_member = (find_blocked_source_path(graph, sender) is None)
+        -> KLJUČNO: članstvo se određuje porijeklom (ima li sankcionisani predak),
+           a ne pukim "nije u BLOCKED listi". Tako tainted wallet (Garantex iznad)
+           NE može dokazati članstvo iako sam nije na listi.
+    * result["zk_proof"] = generate_clean_funds_proof(... is_member ...)
+    * is_member True  => verdikt NO MATCH, mali risk_score, factor "Clean-funds
+      membership proven via zk-STARK..." + audit note.
+    * is_member False => zadrži REVIEW, dodaj factor "zk-STARK clean-funds proof
+      could NOT be produced — deposit traces to a sanctioned source...".
+
+- scripts/risk_api_server.py: ScreenTransferRequest dobio polje
+  scenario: str | None, koje se prosljeđuje u run_transfer_screening.
+
+VAŽNO: bazni graf se kešira na startupu (base_graph_and_context). Nakon izmjena
+backenda MORA se restartovati risk API.
+
+--------------------------------------------------------------------------------
+6. Frontend
+--------------------------------------------------------------------------------
+- src/lib/zk-proof.ts:
+    * Tipovi (ZkCleanFundsProof, ZkProofPublicInputs, ZkVerifyResult).
+    * verifyCleanFundsProof(proof): preko Web Crypto (crypto.subtle.digest
+      "SHA-256") ponovo izračuna commitment_mac nad ISTIM kanonskim stringom kao
+      Python i provjeri 3 stvari (MAC, membership, ruleset). Async je jer je Web
+      Crypto async.
+    * downloadProofJson(proof, caseId): preuzima .json artefakt dokaza.
+
+- src/components/chainsight/ZkProofPanel.tsx: kartica koja prikazuje
+    * statement + proof_system,
+    * "shielded witness" red (sender/recipient/amount kao ••••••),
+    * public inputs (skraćeni hex), metriku,
+    * dugme "Verify proof" (zove verifyCleanFundsProof, prikazuje VALID/INVALID +
+      listu pojedinačnih provjera) i "Download .json".
+    * Zeleno (cleared) za validan, crveno (blocked) za nevalidan.
+
+- src/routes/wallet-zk.tsx: novi privatni novčanik na ruti /wallet-zk. Dva dugmeta:
+    "Send clean funds (private)"  -> scenario "zk_clean"
+    "Send tainted funds (private)"-> scenario "zk_tainted"
+  Nakon slanja: depositStore.add(dep) (pa se pojavi i u dashboard live alerts /
+  slučajevima i kroz tabove), i prikaže rezultat sa ZkProofPanel inline.
+
+- src/lib/api/risk.functions.ts: screenTransfer validator dobio
+  scenario?: "zk_clean" | "zk_tainted"; RiskRunnerResult dobio zk_proof?.
+
+- src/lib/mock-data.ts: Deposit dobio zkProof?: ZkCleanFundsProof.
+
+- src/lib/deposit-store.ts: createWalletDepositFromBackend prima scenario, šalje
+  ga, i za zk depozite zadržava verdikt/faktore iz backenda + kači zkProof (umjesto
+  javnog "REVIEW" narativa). Javni /wallet tok je netaknut.
+
+- src/components/chainsight/CaseDetail.tsx: ako deposit.zkProof postoji, renderuje
+  <ZkProofPanel> ispod grafa, pa analitičar može Verify/Download.
+
+--------------------------------------------------------------------------------
+7. Cross-language konzistentnost (Python <-> TypeScript)
+--------------------------------------------------------------------------------
+Da bi dokaz napravljen u Pythonu verifikovao identično u browseru, OBJE strane
+moraju izračunati isti SHA-256 nad istim stringom. Kanonski string za MAC:
+
+  "{pool_id}|{association_root}|{nullifier}|{ruleset_hash}|{max_hops}|{membership}|{VERIFYING_KEY}"
+
+Pravila koja to garantuju:
+- isti separator "|" i isti redoslijed polja na obje strane,
+- membership se renderuje kao "true"/"false" (mala slova) i u Pythonu (_b) i u TS
+  (membership ? "true" : "false"),
+- max_hops kao decimalni string (str(5) == String(5) == "5"),
+- iste konstante: VERIFYING_KEY = "chainsight-zk-vk-v1", MAX_HOPS = 5,
+  RULESET_HASH = SHA-256("OFAC-SDN|max_hops=5|exclude-mixer-tainted").
+
+Ako mijenjaš VERIFYING_KEY, MAX_HOPS ili formulu — promijeni na OBJE strane
+(scripts/zk_clean_funds.py i src/lib/zk-proof.ts), inače verifikacija pukne.
+
+--------------------------------------------------------------------------------
+8. Dva scenarija (šta demonstriraju)
+--------------------------------------------------------------------------------
+ČIST (zk_clean):
+  Funding legit (Binance) -> wallet -> gone.wtf -> recipient.
+  Nema sankcionisanog pretka => is_member=True => dokaz VALIDAN => verdikt CLEARED.
+  Poruka: "moja sredstva su dokazano čista, bez otkrivanja detalja".
+
+TAINTED (zk_tainted):
+  Garantex (OFAC) -> wallet -> gone.wtf -> recipient.
+  Sankcionisani predak => is_member=False => dokaz se NE može proizvesti kao
+  validan => verifikacija INVALID => depozit odbijen (REVIEW/blokada).
+  Poruka: "privatnost NE pomaže prljavom novcu; bez dokaza nema prolaza".
+
+--------------------------------------------------------------------------------
+9. ZAŠTO simulacija, a ne pravi STARK
+--------------------------------------------------------------------------------
+- Cijeli projekat je deterministička simulacija (Python risk runner gradi sintetički
+  graf). Pravi STARK prover traži tešku toolchain (Rust/Cairo/RISC0/WASM), kompleksan
+  je i spor — van okvira ovog demoa.
+- Naša "simulacija" je iskrena: jasno je označena ("zk-STARK (transparent, simulated
+  demo)"), proof_blob je neproziran stand-in, a metrike su sintetičke. ALI:
+  * commitmenti, Merkle root, nullifier i MAC su STVARNI i deterministički,
+  * verifikacija javnog iskaza je STVARNA i provjerljiva (i cross-language).
+- Pedagoški je tačno: prikazuje SVE bitne djelove ZK toka (javni iskaz vs skriveni
+  witness, association set, nullifier, verifikacija) bez tereta pravog kola.
+- Granica: ono što NE radimo je kriptografski dokaz da postoji witness koji
+  zadovoljava kolo (soundness pravog STARK-a). Verifikator ovdje provjerava
+  konzistentnost javnog iskaza + MAC, ne stvarni STARK trag.
+
+--------------------------------------------------------------------------------
+10. Kako testirati
+--------------------------------------------------------------------------------
+1) Restartuj risk API (graf se kešira na startupu + nov kod):
+     py -m uvicorn scripts.risk_api_server:app --host 127.0.0.1 --port 8000
+2) (opciono) backend smoke test:
+     py -m scripts.zk_clean_funds
+   -> clean: valid True ; tainted: valid False
+3) tsc provjera:
+     npx tsc --noEmit
+4) U browseru otvori /wallet-zk (ili "Try the private zk wallet" na /wallet):
+   - "Send clean funds"  -> ZkProofPanel, Verify => VALID, deposit CLEARED.
+   - "Send tainted funds" -> Verify => INVALID, deposit odbijen.
+5) Otvori slučaj u dashboardu (live alerts / lista) -> ZkProofPanel se prikazuje;
+   Verify i Download .json rade. Preuzeti .json ima commitment_mac koji se
+   reprodukuje identično (Python i TS).
+
+--------------------------------------------------------------------------------
+11. Bitni fajlovi (mapa)
+--------------------------------------------------------------------------------
+  scripts/zk_clean_funds.py                         zk jezgro (gen/verify/merkle)
+  scripts/solana_risk_runner.py                     scenario + kačenje zk_proof
+  scripts/risk_api_server.py                        scenario polje u API requestu
+  src/lib/zk-proof.ts                               TS tipovi + verifier + download
+  src/components/chainsight/ZkProofPanel.tsx        prikaz dokaza + Verify/Download
+  src/routes/wallet-zk.tsx                           privatni demo novčanik (/wallet-zk)
+  src/lib/api/risk.functions.ts                     scenario + zk_proof u tipu
+  src/lib/mock-data.ts                              Deposit.zkProof
+  src/lib/deposit-store.ts                          mapiranje rezultata -> Deposit
+  src/components/chainsight/CaseDetail.tsx          panel u slučaju
+
+================================================================================
+Kraj. Sažetak: javne transakcije se trasiraju; privatne se DOKAZUJU. zk-STARK
+clean-funds dokaz potvrđuje članstvo u čistom association setu bez otkrivanja
+sender/receiver/amount; berza verifikuje umjesto da prati. Implementacija je
+iskrena simulacija sa stvarnom, cross-language verifikacijom javnog iskaza.
+================================================================================

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { EXCHANGE_HOT_WALLET } from "../config";
+import type { ZkCleanFundsProof } from "../zk-proof";
 
 export type RiskRunnerVerdict = "MATCH" | "REVIEW" | "NO MATCH";
 
@@ -67,6 +68,7 @@ export interface RiskRunnerResult {
     avg_amount_sol: number;
     pattern: "peel_chain" | "structuring";
   };
+  zk_proof?: ZkCleanFundsProof;
 }
 
 const RISK_API_BASE_URL = process.env.RISK_API_BASE_URL ?? "http://127.0.0.1:8000";
@@ -100,6 +102,7 @@ export const screenTransfer = createServerFn({ method: "POST" })
       recipient_wallet: z.string().min(1),
       amount: z.number().positive(),
       token: z.string().min(1),
+      scenario: z.enum(["zk_clean", "zk_tainted"]).optional(),
     }),
   )
   .handler(async ({ data }) => {

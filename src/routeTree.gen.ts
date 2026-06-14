@@ -9,9 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WalletZkRouteImport } from './routes/wallet-zk'
 import { Route as WalletRouteImport } from './routes/wallet'
 import { Route as IndexRouteImport } from './routes/index'
 
+const WalletZkRoute = WalletZkRouteImport.update({
+  id: '/wallet-zk',
+  path: '/wallet-zk',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WalletRoute = WalletRouteImport.update({
   id: '/wallet',
   path: '/wallet',
@@ -26,31 +32,42 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/wallet': typeof WalletRoute
+  '/wallet-zk': typeof WalletZkRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/wallet': typeof WalletRoute
+  '/wallet-zk': typeof WalletZkRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/wallet': typeof WalletRoute
+  '/wallet-zk': typeof WalletZkRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/wallet'
+  fullPaths: '/' | '/wallet' | '/wallet-zk'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/wallet'
-  id: '__root__' | '/' | '/wallet'
+  to: '/' | '/wallet' | '/wallet-zk'
+  id: '__root__' | '/' | '/wallet' | '/wallet-zk'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   WalletRoute: typeof WalletRoute
+  WalletZkRoute: typeof WalletZkRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/wallet-zk': {
+      id: '/wallet-zk'
+      path: '/wallet-zk'
+      fullPath: '/wallet-zk'
+      preLoaderRoute: typeof WalletZkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/wallet': {
       id: '/wallet'
       path: '/wallet'
@@ -71,6 +88,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   WalletRoute: WalletRoute,
+  WalletZkRoute: WalletZkRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

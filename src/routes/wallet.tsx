@@ -151,6 +151,12 @@ function WalletPage() {
         <Link to="/" className="underline font-medium ml-2 inline-flex items-center gap-1">
           Back to ChainSight <ExternalLink className="size-3" />
         </Link>
+        <Link
+          to="/wallet-zk"
+          className="underline font-medium ml-2 inline-flex items-center gap-1"
+        >
+          Try the private zk wallet <ExternalLink className="size-3" />
+        </Link>
       </div>
 
       <div className="flex-1 grid place-items-center p-6">
