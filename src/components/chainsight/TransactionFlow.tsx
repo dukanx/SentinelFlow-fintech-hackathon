@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import { Ban, Wallet, Shuffle, Coins, Building2, Network } from "lucide-react";
 import { truncateAddress } from "@/lib/format";
@@ -125,6 +125,21 @@ export function TransactionFlow({ nodes, edges }: Props) {
   }, [nodes, edges]);
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const hoverTimer = useRef<number | null>(null);
+
+  function enterNode(id: string) {
+    if (hoverTimer.current) {
+      window.clearTimeout(hoverTimer.current);
+      hoverTimer.current = null;
+    }
+    setHoveredId(id);
+  }
+
+  // Small grace period so the cursor can travel from the node to its popover
+  // (across the gap) without the popover disappearing — needed to copy from it.
+  function leaveNode() {
+    hoverTimer.current = window.setTimeout(() => setHoveredId(null), 180);
+  }
 
   // Compute connected edges/nodes for highlight
   const { connectedEdges, connectedNodes } = useMemo(() => {
@@ -169,7 +184,7 @@ export function TransactionFlow({ nodes, edges }: Props) {
       </div>
 
       {/* Canvas */}
-      <div className="relative overflow-x-auto bg-[radial-gradient(oklch(0.92_0.005_250)_1px,transparent_1px)] [background-size:18px_18px]">
+      <div className="relative overflow-x-auto bg-[radial-gradient(oklch(0.92_0.005_250)_1px,transparent_1px)] bg-size-[18px_18px]">
         <div
           className="relative mx-auto"
           style={{ width: layout.width, height: layout.height, minWidth: "100%" }}
@@ -295,8 +310,8 @@ export function TransactionFlow({ nodes, edges }: Props) {
             return (
               <div
                 key={n.id}
-                onMouseEnter={() => setHoveredId(n.id)}
-                onMouseLeave={() => setHoveredId(null)}
+                onMouseEnter={() => enterNode(n.id)}
+                onMouseLeave={leaveNode}
                 className={`absolute rounded-lg border shadow-sm ${s.wrap} cursor-pointer transition-all duration-200 ${isHovered ? "shadow-lg scale-[1.03] z-20" : "hover:shadow-md"}`}
                 style={{
                   left: pos.x,
@@ -326,7 +341,7 @@ export function TransactionFlow({ nodes, edges }: Props) {
                     )}
                   </div>
                 </div>
-
+                    
                 {/* Hover detail popover — full, copyable address only */}
                 {isHovered &&
                   data.address &&
@@ -335,9 +350,10 @@ export function TransactionFlow({ nodes, edges }: Props) {
                     const showAbove = pos.y > layout.height - (pos.y + NODE_H);
                     return (
                       <div
-                        className="absolute z-50 left-1/2 -translate-x-1/2 w-[252px] rounded-lg border-2 border-foreground/30 bg-popover shadow-2xl px-3 py-2.5 cursor-default"
+                        className="absolute z-50 left-1/2 -translate-x-1/2 w-63 rounded-lg border-2 border-foreground/30 bg-popover shadow-2xl px-3 py-2.5 cursor-default"
                         style={showAbove ? { bottom: NODE_H + 10 } : { top: NODE_H + 10 }}
-                        onMouseEnter={() => setHoveredId(n.id)}
+                        onMouseEnter={() => enterNode(n.id)}
+                        onMouseLeave={leaveNode}
                       >
                         <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium mb-1">
                           Wallet address

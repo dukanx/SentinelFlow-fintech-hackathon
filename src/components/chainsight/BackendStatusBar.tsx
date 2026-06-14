@@ -1,19 +1,12 @@
-import { AlertCircle, Loader2, RefreshCw, Server } from "lucide-react";
+import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { loadRiskDeposits, useDepositLoadSource } from "@/lib/deposit-store";
 
 export function BackendStatusBar() {
   const { source, error } = useDepositLoadSource();
 
+  // When the live API is connected we stay quiet — no success banner.
   if (source === "live") {
-    return (
-      <div className="flex items-center gap-2 rounded-lg border border-verdict-cleared/30 bg-verdict-cleared-soft/40 px-4 py-2 text-sm">
-        <Server className="size-4 text-verdict-cleared" />
-        <span>
-          <strong className="font-medium">Live risk API</strong> — deposits loaded from Python backend
-          (port 8000).
-        </span>
-      </div>
-    );
+    return null;
   }
 
   if (source === "loading") {

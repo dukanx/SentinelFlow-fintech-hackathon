@@ -1,7 +1,6 @@
 import { ShieldAlert, Radio } from "lucide-react";
 import type { OpsAlert } from "@/lib/demo-ops-metrics";
 import { formatRelative } from "@/lib/format";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 const SEV_STYLE: Record<OpsAlert["severity"], string> = {
   critical: "bg-verdict-blocked text-verdict-blocked border-verdict-blocked/40",
@@ -35,7 +34,7 @@ export function AlertFeed({ alerts, onOpenCase }: Props) {
         </span>
       </div>
 
-      <ScrollArea className="flex-1 max-h-[420px]">
+      <div className="flex-1 overflow-y-auto max-h-[420px]">
         <ul className="divide-y">
           {alerts.map((alert) => {
             const critical = alert.severity === "critical";
@@ -84,7 +83,7 @@ export function AlertFeed({ alerts, onOpenCase }: Props) {
             );
           })}
         </ul>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

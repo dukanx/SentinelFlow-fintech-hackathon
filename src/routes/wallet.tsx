@@ -179,7 +179,7 @@ function WalletPage() {
               onClick={copyAddr}
               className="mt-1 flex items-center gap-2 text-xs font-mono text-white/80 hover:text-white"
             >
-              <span className="truncate max-w-[230px]">{WALLET_ADDRESS}</span>
+              <span className="truncate max-w-57.5">{WALLET_ADDRESS}</span>
               {copied ? (
                 <Check className="size-3.5 text-emerald-400" />
               ) : (

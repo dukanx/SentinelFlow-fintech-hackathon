@@ -1,7 +1,6 @@
 import { ACTION_LABELS, useAuditLog, type AuditLogEntry } from "@/lib/audit-log";
 import { formatDateTime, formatRelative, truncateAddress } from "@/lib/format";
 import { AnalystAvatar } from "./AnalystAvatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 function EntryRow({ entry }: { entry: AuditLogEntry }) {
   return (
@@ -43,13 +42,13 @@ export function AuditLogPanel() {
           Append-only session record — production uses tamper-evident storage.
         </p>
       </div>
-      <ScrollArea className="max-h-[calc(100vh-280px)]">
+      <div className="overflow-y-auto max-h-[calc(100vh-280px)]">
         <div className="divide-y">
           {entries.map((entry) => (
             <EntryRow key={entry.id} entry={entry} />
           ))}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

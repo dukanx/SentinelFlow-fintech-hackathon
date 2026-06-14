@@ -26,7 +26,6 @@ import { CaseDetail, defaultNoteFor } from "./CaseDetail";
 import { NewDepositPopup } from "./NewDepositPopup";
 import { CommandCenter } from "./CommandCenter";
 import { AuditLogPanel } from "./AuditLogPanel";
-import { DemoBanner } from "./DemoBanner";
 import { BackendStatusBar } from "./BackendStatusBar";
 import { CURRENT_ANALYST } from "@/lib/config";
 
@@ -333,7 +332,6 @@ export function ChainSightApp() {
           ) : (
             <>
               <BackendStatusBar />
-              <DemoBanner />
               {nav !== "audit" && <StatCards deposits={allDeposits} />}
               <div>
                 <h1 className="text-xl font-medium tracking-tight">

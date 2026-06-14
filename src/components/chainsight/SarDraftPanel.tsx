@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Copy, Download, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Deposit } from "@/lib/mock-data";
@@ -37,8 +38,8 @@ export function SarDraftPanel({ deposit, analystDecision, onClose }: Props) {
     toast.success("Draft downloaded");
   }
 
-  return (
-    <div className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+  const panel = (
+    <div className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="w-full max-w-3xl max-h-[90vh] rounded-xl border bg-surface shadow-xl flex flex-col">
         <div className="px-5 py-4 border-b flex items-center justify-between gap-3">
           <div>
@@ -97,4 +98,7 @@ export function SarDraftPanel({ deposit, analystDecision, onClose }: Props) {
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") return null;
+  return createPortal(panel, document.body);
 }

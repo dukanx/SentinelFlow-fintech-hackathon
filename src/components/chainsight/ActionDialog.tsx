@@ -71,7 +71,7 @@ export function ActionDialog({ kind, deposit, onConfirm, onClose }: Props) {
 
   const dialog = (
     <div
-      className="fixed inset-0 z-[60] grid place-items-center bg-foreground/40 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-60 grid place-items-center bg-foreground/40 backdrop-blur-sm p-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div

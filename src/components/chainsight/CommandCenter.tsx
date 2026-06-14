@@ -7,7 +7,6 @@ import {
   type OpsAlert,
 } from "@/lib/demo-ops-metrics";
 import { DEMO_LIVE_TICK_MS } from "@/lib/config";
-import { DemoBanner } from "./DemoBanner";
 import { HeroMetrics } from "./HeroMetrics";
 import { AlertFeed } from "./AlertFeed";
 
@@ -43,7 +42,6 @@ export function CommandCenter({ deposits, onOpenCase }: Props) {
 
   return (
     <div className="space-y-5">
-      <DemoBanner />
       <HeroMetrics metrics={metrics} />
       <AlertFeed alerts={alerts} onOpenCase={onOpenCase} />
       <p className="text-xs text-muted-foreground text-center">

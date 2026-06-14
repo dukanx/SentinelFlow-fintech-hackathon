@@ -75,7 +75,7 @@ export function NeedsReviewBoard({ cases, columnOf, onOpen, onRequestEdd, onMark
                 {items.length}
               </span>
             </div>
-            <div className="flex flex-col gap-3 p-3 min-h-[220px] bg-surface-2/30">
+            <div className="flex flex-col gap-3 p-3 min-h-55 bg-surface-2/30">
               {items.length === 0 && (
                 <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground/60">
                   <Icon className="size-7 opacity-50" />
